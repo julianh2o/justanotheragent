@@ -7,3 +7,82 @@ generator client {
 datasource db {
   provider = "sqlite"
 }
+
+model Contact {
+  id                      String    @id @default(cuid())
+  firstName               String
+  lastName                String?
+  birthday                DateTime?
+  notes                   String?
+  outreachFrequencyDays   Int?
+  preferredContactMethod  String?   // References ChannelType.id
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  channels     Channel[]
+  tags         TagOnContact[]
+  customFields CustomFieldValue[]
+}
+
+// Channel types: phone, email, address, discord, instagram, facebook_messenger
+model Channel {
+  id         String  @id @default(cuid())
+  type       String  // References ChannelType.id
+  identifier String  // Phone number, email, screen name, handle, etc.
+  label      String? // e.g., "Work", "Personal", "Home"
+  isPrimary  Boolean @default(false)
+  contactId  String
+  contact    Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  // For address-type channels, store structured address data
+  street1 String?
+  street2 String?
+  city    String?
+  state   String?
+  zip     String?
+  country String?
+}
+
+model ChannelType {
+  id          String  @id
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+}
+
+model Tag {
+  id       String         @id @default(cuid())
+  name     String         @unique
+  contacts TagOnContact[]
+}
+
+model TagOnContact {
+  contactId String
+  tagId     String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+}
+
+model CustomFieldDefinition {
+  id          String             @id
+  name        String
+  description String?
+  sortOrder   Int                @default(0)
+  createdAt   DateTime           @default(now())
+  values      CustomFieldValue[]
+}
+
+model CustomFieldValue {
+  id         String                @id @default(cuid())
+  value      String
+  contactId  String
+  fieldId    String
+  contact    Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  field      CustomFieldDefinition @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@unique([contactId, fieldId])
+}

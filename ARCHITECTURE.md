@@ -71,16 +71,6 @@ PORT=2999                   # Optional, defaults to 2999
 DATABASE_URL=...            # SQLite file path (e.g., "file:./data/db.db")
 ```
 
-**Twilio and JWT Configuration (Optional):**
-The template includes Twilio and JWT configuration in the `.env.example` file, but these are not required for the basic template to run. Remove these if you don't need them:
-```
-TWILIO_ACCOUNT_SID=...      # Optional: For SMS functionality
-TWILIO_AUTH_TOKEN=...       # Optional: For SMS functionality
-TWILIO_PHONE_NUMBER=...     # Optional: For SMS functionality
-JWT_SECRET=...              # Optional: For JWT authentication
-APP_BASE_URL=...            # Optional: Base URL for your app
-```
-
 ## Key Files
 
 ### Frontend

@@ -1,0 +1,112 @@
+import { Contact, ContactFormData, ChannelType, CustomFieldDefinition, Tag } from '../types';
+import { getApiBaseUrl } from './api';
+
+const getUrl = (path: string) => `${getApiBaseUrl()}${path}`;
+
+// Contacts
+export async function fetchContacts(): Promise<Contact[]> {
+	const response = await fetch(getUrl('/api/contacts'));
+	if (!response.ok) {
+		throw new Error('Failed to fetch contacts');
+	}
+	return response.json();
+}
+
+export async function fetchContact(id: string): Promise<Contact> {
+	const response = await fetch(getUrl(`/api/contacts/${id}`));
+	if (!response.ok) {
+		throw new Error('Failed to fetch contact');
+	}
+	return response.json();
+}
+
+export async function createContact(data: ContactFormData): Promise<Contact> {
+	const response = await fetch(getUrl('/api/contacts'), {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+	});
+	if (!response.ok) {
+		throw new Error('Failed to create contact');
+	}
+	return response.json();
+}
+
+export async function updateContact(id: string, data: ContactFormData): Promise<Contact> {
+	const response = await fetch(getUrl(`/api/contacts/${id}`), {
+		method: 'PUT',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(data),
+	});
+	if (!response.ok) {
+		throw new Error('Failed to update contact');
+	}
+	return response.json();
+}
+
+export async function deleteContact(id: string): Promise<void> {
+	const response = await fetch(getUrl(`/api/contacts/${id}`), {
+		method: 'DELETE',
+	});
+	if (!response.ok) {
+		throw new Error('Failed to delete contact');
+	}
+}
+
+// Lookups
+export async function fetchChannelTypes(): Promise<ChannelType[]> {
+	const response = await fetch(getUrl('/api/lookups/channel-types'));
+	if (!response.ok) {
+		throw new Error('Failed to fetch channel types');
+	}
+	return response.json();
+}
+
+export async function fetchCustomFieldDefinitions(): Promise<CustomFieldDefinition[]> {
+	const response = await fetch(getUrl('/api/lookups/custom-fields'));
+	if (!response.ok) {
+		throw new Error('Failed to fetch custom field definitions');
+	}
+	return response.json();
+}
+
+export async function fetchTags(): Promise<Tag[]> {
+	const response = await fetch(getUrl('/api/lookups/tags'));
+	if (!response.ok) {
+		throw new Error('Failed to fetch tags');
+	}
+	return response.json();
+}
+
+export async function createTag(name: string): Promise<Tag> {
+	const response = await fetch(getUrl('/api/lookups/tags'), {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name }),
+	});
+	if (!response.ok) {
+		throw new Error('Failed to create tag');
+	}
+	return response.json();
+}
+
+// CSV Import/Export
+export function getExportUrl(): string {
+	return getUrl('/api/contacts/csv/export');
+}
+
+export function getTemplateUrl(): string {
+	return getUrl('/api/contacts/csv/template');
+}
+
+export async function importContactsCSV(csv: string): Promise<{ imported: number; errors: string[] }> {
+	const response = await fetch(getUrl('/api/contacts/csv/import'), {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ csv }),
+	});
+	if (!response.ok) {
+		throw new Error('Failed to import contacts');
+	}
+	return response.json();
+}

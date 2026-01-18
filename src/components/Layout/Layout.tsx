@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Box, Container } from '@mui/material';
+import { Box } from '@mui/material';
 
 interface LayoutProps {
 	children: ReactNode;
@@ -8,9 +8,9 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
 	return (
 		<Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-			<Container component='main' sx={{ flex: 1, py: 4 }}>
+			<Box component='main' sx={{ flex: 1 }}>
 				{children}
-			</Container>
+			</Box>
 		</Box>
 	);
 };

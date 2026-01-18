@@ -8,11 +8,6 @@ services:
       - '2999:2999'
     environment:
       - PORT=2999
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
-      - JWT_SECRET=${JWT_SECRET}
-      - APP_BASE_URL=http://localhost:2999
       - NODE_ENV=production
       - DATABASE_URL=file:./data/db.db
     volumes:
