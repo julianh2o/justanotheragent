@@ -5,6 +5,7 @@ import { config } from './config';
 import { prisma } from './db';
 import apiRouter from './api';
 import { getBuildPath } from './utils/paths';
+import { startDiscordBot } from './discord-bot';
 
 const app = express();
 
@@ -48,6 +49,9 @@ if (
 			console.error('Failed to connect to database:', error);
 			process.exit(1);
 		}
+
+		// Start Discord bot
+		await startDiscordBot();
 	});
 } else {
 	console.log('[DEBUG] Not starting server (condition not met)');

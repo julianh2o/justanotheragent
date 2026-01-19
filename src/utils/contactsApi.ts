@@ -110,3 +110,32 @@ export async function importContactsCSV(csv: string): Promise<{ imported: number
 	}
 	return response.json();
 }
+
+// Discord
+export async function sendDiscordReminder(): Promise<void> {
+	const response = await fetch(getUrl('/api/discord/send-reminder'), {
+		method: 'POST',
+	});
+	if (!response.ok) {
+		throw new Error('Failed to send reminder');
+	}
+}
+
+// Messages
+export interface Message {
+	userId: string;
+	message: string;
+	date: string;
+	service: string;
+	destinationCallerId: string;
+	isFromMe: boolean;
+}
+
+export async function fetchMessages(phoneNumber: string, limit = 50): Promise<Message[]> {
+	const encoded = encodeURIComponent(phoneNumber);
+	const response = await fetch(getUrl(`/api/messages/${encoded}?limit=${limit}`));
+	if (!response.ok) {
+		throw new Error('Failed to fetch messages');
+	}
+	return response.json();
+}

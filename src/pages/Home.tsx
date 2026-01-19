@@ -1,10 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Typography, Paper, Snackbar, Alert } from '@mui/material';
 
 import { APP_TITLE, PAGE_TITLE_HOME } from '../utils/constants';
 import { Contact, ChannelType, CustomFieldDefinition, Tag } from '../types';
-import { fetchContacts, fetchChannelTypes, fetchCustomFieldDefinitions, fetchTags } from '../utils/contactsApi';
+import {
+	fetchContacts,
+	fetchChannelTypes,
+	fetchCustomFieldDefinitions,
+	fetchTags,
+	getExportUrl,
+	getTemplateUrl,
+	importContactsCSV,
+	sendDiscordReminder,
+} from '../utils/contactsApi';
 import ContactListSidebar from '../components/ContactListSidebar';
 import ContactDetailView from '../components/ContactDetailView';
 import ContactDialog from '../components/ContactDialog';
@@ -17,6 +26,12 @@ export const Home = () => {
 	const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 	const [dialogOpen, setDialogOpen] = useState(false);
 	const [loading, setLoading] = useState(true);
+	const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+		open: false,
+		message: '',
+		severity: 'success',
+	});
+	const fileInputRef = useRef<HTMLInputElement | null>(null);
 
 	const loadData = useCallback(async () => {
 		try {
@@ -70,6 +85,75 @@ export const Home = () => {
 		loadData();
 	};
 
+	const handleExport = () => {
+		window.open(getExportUrl(), '_blank');
+	};
+
+	const handleDownloadTemplate = () => {
+		window.open(getTemplateUrl(), '_blank');
+	};
+
+	const handleImportClick = () => {
+		fileInputRef.current?.click();
+	};
+
+	const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		try {
+			const csv = await file.text();
+			const result = await importContactsCSV(csv);
+
+			if (result.errors.length > 0) {
+				console.error('Import errors:', result.errors);
+				setSnackbar({
+					open: true,
+					message: `Imported ${result.imported} contacts with ${result.errors.length} errors. Check console for details.`,
+					severity: result.imported > 0 ? 'success' : 'error',
+				});
+			} else {
+				setSnackbar({
+					open: true,
+					message: `Successfully imported ${result.imported} contacts.`,
+					severity: 'success',
+				});
+			}
+			loadData();
+		} catch (error) {
+			console.error('Import failed:', error);
+			setSnackbar({
+				open: true,
+				message: 'Failed to import contacts.',
+				severity: 'error',
+			});
+		}
+
+		event.target.value = '';
+	};
+
+	const handleSnackbarClose = () => {
+		setSnackbar({ ...snackbar, open: false });
+	};
+
+	const handleSendReminder = async () => {
+		try {
+			await sendDiscordReminder();
+			setSnackbar({
+				open: true,
+				message: 'Reminder sent to Discord.',
+				severity: 'success',
+			});
+		} catch (error) {
+			console.error('Failed to send reminder:', error);
+			setSnackbar({
+				open: true,
+				message: 'Failed to send reminder.',
+				severity: 'error',
+			});
+		}
+	};
+
 	return (
 		<>
 			<Helmet>
@@ -85,7 +169,12 @@ export const Home = () => {
 						selectedContactId={selectedContact?.id || null}
 						onSelectContact={handleSelectContact}
 						onAddContact={handleAddContact}
+						onImport={handleImportClick}
+						onExport={handleExport}
+						onDownloadTemplate={handleDownloadTemplate}
+						onSendReminder={handleSendReminder}
 					/>
+					<input type='file' ref={fileInputRef} style={{ display: 'none' }} accept='.csv' onChange={handleFileChange} />
 				</Box>
 
 				{/* Right panel - Contact detail */}
@@ -128,6 +217,11 @@ export const Home = () => {
 				onSave={handleDialogSave}
 				onTagsChange={setTags}
 			/>
+			<Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleSnackbarClose}>
+				<Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+					{snackbar.message}
+				</Alert>
+			</Snackbar>
 		</>
 	);
 };

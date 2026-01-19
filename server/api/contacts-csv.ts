@@ -187,67 +187,81 @@ router.get('/template', async (_req: Request, res: Response) => {
 			headers.push(`cf_${cf.id}`);
 		}
 
-		// Create sample rows
-		const sampleRows = [
-			// Row 1: Full example
-			[
-				'John',
-				'Doe',
-				'1990-05-15',
-				'Met at conference 2024',
-				'30',
-				'phone',
-				'Friend;Coworker',
-				'555-123-4567',
-				'Mobile',
-				'true',
-				'john.doe@example.com',
-				'Work',
-				'true',
-				'Home',
-				'',
-				'',
-				'123 Main St',
-				'Apt 4B',
-				'New York',
-				'NY',
-				'10001',
-				'USA',
-				'johndoe#1234',
-				'',
-				'',
-				'@johndoe',
-				'Personal',
-				'',
-				'johndoe',
-				'',
-				'',
-				// Custom fields (sample values for first few)
-				'Quality Time',
-				'Acts of Service',
-				'Jazz; Classical',
-				'Blue; Green',
-				'Books; Tech gadgets',
-				...Array(customFieldDefs.length - 5).fill(''),
-			],
-			// Row 2: Minimal example
-			[
-				'Jane',
-				'Smith',
-				'',
-				'',
-				'',
-				'',
-				'',
-				'555-987-6543',
-				'',
-				'',
-				'jane@example.com',
-				'',
-				'true',
-				...Array(headers.length - 13).fill(''),
-			],
+		// Create sample rows dynamically based on headers length
+		const baseFieldCount = headers.length - customFieldDefs.length; // Fields before custom fields
+
+		// Row 1: Full example with all channel types filled
+		const row1: string[] = [
+			'John', // firstName
+			'Doe', // lastName
+			'1990-05-15', // birthday
+			'Met at conference 2024', // notes
+			'30', // outreachFrequencyDays
+			'phone', // preferredContactMethod
+			'Friend;Coworker', // tags
+			// phone
+			'555-123-4567',
+			'Mobile',
+			'true',
+			// email
+			'john.doe@example.com',
+			'Work',
+			'true',
+			// address
+			'',
+			'Home',
+			'',
+			'123 Main St',
+			'Apt 4B',
+			'New York',
+			'NY',
+			'10001',
+			'USA',
+			// discord
+			'johndoe#1234',
+			'',
+			'',
+			// instagram
+			'@johndoe',
+			'Personal',
+			'',
+			// facebook_messenger
+			'johndoe',
+			'',
+			'',
 		];
+		// Pad row1 to baseFieldCount if needed, then add custom field placeholders
+		while (row1.length < baseFieldCount) {
+			row1.push('');
+		}
+		for (const _cf of customFieldDefs) {
+			row1.push('');
+		}
+
+		// Row 2: Minimal example
+		const row2: string[] = [
+			'Jane', // firstName
+			'Smith', // lastName
+			'', // birthday
+			'', // notes
+			'', // outreachFrequencyDays
+			'', // preferredContactMethod
+			'', // tags
+			// phone
+			'555-987-6543',
+			'',
+			'',
+			// email
+			'jane@example.com',
+			'',
+			'true',
+		];
+		// Pad to full header length
+		while (row2.length < headers.length) {
+			row2.push('');
+		}
+
+		const sampleRows = [row1, row2];
 
 		// Generate CSV content
 		const csv = [headers.join(','), ...sampleRows.map((r) => r.slice(0, headers.length).join(','))].join('\n');

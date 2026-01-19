@@ -9,6 +9,10 @@ interface Config {
 	database: {
 		url: string;
 	};
+	discord: {
+		botToken: string | null;
+		userId: string | null;
+	};
 }
 
 function getRequiredEnv(key: string): string {
@@ -34,6 +38,10 @@ function createConfig(): Config {
 		isTest: nodeEnv === 'test',
 		database: {
 			url: getOptionalEnv('DATABASE_URL', 'file:./data/.db'),
+		},
+		discord: {
+			botToken: process.env.DISCORD_BOT_TOKEN || null,
+			userId: process.env.DISCORD_USER_ID || null,
 		},
 	};
 }

@@ -16,6 +16,7 @@ model Contact {
   notes                   String?
   outreachFrequencyDays   Int?
   preferredContactMethod  String?   // References ChannelType.id
+  lastContacted           DateTime?
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 

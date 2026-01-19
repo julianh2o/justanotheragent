@@ -10,8 +10,19 @@ import {
 	Typography,
 	InputAdornment,
 	IconButton,
+	Menu,
+	MenuItem,
+	ListItemIcon,
 } from '@mui/material';
-import { Search as SearchIcon, Add as AddIcon } from '@mui/icons-material';
+import {
+	Search as SearchIcon,
+	Add as AddIcon,
+	MoreVert as MoreIcon,
+	FileDownload as ExportIcon,
+	FileUpload as ImportIcon,
+	Description as TemplateIcon,
+	Notifications as NotificationsIcon,
+} from '@mui/icons-material';
 import { Contact } from '../../types';
 
 interface ContactListSidebarProps {
@@ -19,6 +30,10 @@ interface ContactListSidebarProps {
 	selectedContactId: string | null;
 	onSelectContact: (contact: Contact) => void;
 	onAddContact: () => void;
+	onImport: () => void;
+	onExport: () => void;
+	onDownloadTemplate: () => void;
+	onSendReminder: () => void;
 }
 
 export default function ContactListSidebar({
@@ -26,8 +41,41 @@ export default function ContactListSidebar({
 	selectedContactId,
 	onSelectContact,
 	onAddContact,
+	onImport,
+	onExport,
+	onDownloadTemplate,
+	onSendReminder,
 }: ContactListSidebarProps) {
 	const [searchQuery, setSearchQuery] = useState('');
+	const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+
+	const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+		setMenuAnchor(event.currentTarget);
+	};
+
+	const handleMenuClose = () => {
+		setMenuAnchor(null);
+	};
+
+	const handleImportClick = () => {
+		handleMenuClose();
+		onImport();
+	};
+
+	const handleExportClick = () => {
+		handleMenuClose();
+		onExport();
+	};
+
+	const handleTemplateClick = () => {
+		handleMenuClose();
+		onDownloadTemplate();
+	};
+
+	const handleSendReminderClick = () => {
+		handleMenuClose();
+		onSendReminder();
+	};
 
 	const filteredContacts = useMemo(() => {
 		if (!searchQuery.trim()) return contacts;
@@ -74,6 +122,35 @@ export default function ContactListSidebar({
 				<IconButton onClick={onAddContact} color='primary' sx={{ flexShrink: 0 }}>
 					<AddIcon />
 				</IconButton>
+				<IconButton onClick={handleMenuOpen} sx={{ flexShrink: 0 }}>
+					<MoreIcon />
+				</IconButton>
+				<Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={handleMenuClose}>
+					<MenuItem onClick={handleImportClick}>
+						<ListItemIcon>
+							<ImportIcon fontSize='small' />
+						</ListItemIcon>
+						<ListItemText>Import CSV</ListItemText>
+					</MenuItem>
+					<MenuItem onClick={handleExportClick}>
+						<ListItemIcon>
+							<ExportIcon fontSize='small' />
+						</ListItemIcon>
+						<ListItemText>Export CSV</ListItemText>
+					</MenuItem>
+					<MenuItem onClick={handleTemplateClick}>
+						<ListItemIcon>
+							<TemplateIcon fontSize='small' />
+						</ListItemIcon>
+						<ListItemText>Download Template</ListItemText>
+					</MenuItem>
+					<MenuItem onClick={handleSendReminderClick}>
+						<ListItemIcon>
+							<NotificationsIcon fontSize='small' />
+						</ListItemIcon>
+						<ListItemText>Send Reminder</ListItemText>
+					</MenuItem>
+				</Menu>
 			</Box>
 
 			{/* Contact List */}
