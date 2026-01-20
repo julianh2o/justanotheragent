@@ -25,7 +25,9 @@ import {
 	Description as TemplateIcon,
 	Notifications as NotificationsIcon,
 	DeleteForever as PurgeIcon,
+	AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { Contact } from '../../types';
 import TagChip, { parseTagName } from '../TagChip';
 import { formatPhoneForDisplay } from '../../utils/phoneNumber';
@@ -137,6 +139,13 @@ export default function ContactListSidebar({
 	const handlePurgeAllClick = () => {
 		handleMenuClose();
 		onPurgeAll();
+	};
+
+	const navigate = useNavigate();
+
+	const handleAdminClick = () => {
+		handleMenuClose();
+		navigate('/admin');
 	};
 
 	const filteredContacts = useMemo(() => {
@@ -260,6 +269,12 @@ export default function ContactListSidebar({
 							<PurgeIcon fontSize='small' color='error' />
 						</ListItemIcon>
 						<ListItemText>Purge All</ListItemText>
+					</MenuItem>
+					<MenuItem onClick={handleAdminClick}>
+						<ListItemIcon>
+							<AdminIcon fontSize='small' />
+						</ListItemIcon>
+						<ListItemText>Analysis Admin</ListItemText>
 					</MenuItem>
 				</Menu>
 			</Box>

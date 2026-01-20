@@ -1134,6 +1134,62 @@
   resolved "https://registry.npmjs.org/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
+"@boundaryml/baml-darwin-arm64@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-darwin-arm64/-/baml-darwin-arm64-0.217.0.tgz#ef933d6853c702fe48a70d478b66239cf7b04b79"
+  integrity sha512-26yhOd83pzHvO/EN0x/aRqy0OejY2A7+grfAAN+b/I9iPdZ8LgHErXVn2r0sBm//vmmEEu8TI75rGwS1uyD87A==
+
+"@boundaryml/baml-darwin-x64@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-darwin-x64/-/baml-darwin-x64-0.217.0.tgz#46c8b1394ddbd89a3728e7d0692030bc70a4163e"
+  integrity sha512-n6COBW92K3AA24YIh70M0tiN/vvq8UcIpwsuTTZVISw1aBP56GPUDmYNoNFKuBTlEbRVzeKrEuwRV5/7azztUQ==
+
+"@boundaryml/baml-linux-arm64-gnu@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-linux-arm64-gnu/-/baml-linux-arm64-gnu-0.217.0.tgz#9cc8b3d209a821a436e0e187e3153b8af3ba9458"
+  integrity sha512-a+ourSRXXDU9dRVZnTtyz245tzXIVMrHzLt5/YimdjuYdw4qBwmLV9nyMTRME/9AOrSclMcVpaR1N6adHgQdLQ==
+
+"@boundaryml/baml-linux-arm64-musl@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-linux-arm64-musl/-/baml-linux-arm64-musl-0.217.0.tgz#ad594eda4639e598e997f6c91a1eae0fda8abeab"
+  integrity sha512-VmahCX8bYwRPGhsTe7bbs6vTOG1PzR1Z7qflD3rmUA0JrcKv3s8wj66pWuWr+194QSkbtXUYgEn5mzug9QLpBw==
+
+"@boundaryml/baml-linux-x64-gnu@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-linux-x64-gnu/-/baml-linux-x64-gnu-0.217.0.tgz#047590ead694326d6dd9e479ea66c77158fc87c9"
+  integrity sha512-7Pn3nvyla+lX1lrRirLFJFddmG1gP9+7Bm+XeqV1Cm0xQNqoHtt8nBGZ0aRRm6enZsVr3DOK3af2xErydlr04Q==
+
+"@boundaryml/baml-linux-x64-musl@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-linux-x64-musl/-/baml-linux-x64-musl-0.217.0.tgz#00f65e8eb29e3c4624a3808b7bbf83828c766a05"
+  integrity sha512-Zt60V2QUmvwSg1bG0J3MSxtTMQtOibFsd9A1LsqazuBH3srnHqcmtgw7GK6kCZtcEAFi5B5csTvMEL1Qy26EgQ==
+
+"@boundaryml/baml-win32-arm64-msvc@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-win32-arm64-msvc/-/baml-win32-arm64-msvc-0.217.0.tgz#bbf26ba1db249e0fb82a6bd9718a105c019a8463"
+  integrity sha512-Lr+6dK0DA/IEZe1GwkdWCu8R7jiY60puVTsWBjZxCzCv/vOA6DZde9+eXvZK+veZp4zD5Oxh4KAOgl8Ie5mYLA==
+
+"@boundaryml/baml-win32-x64-msvc@0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml-win32-x64-msvc/-/baml-win32-x64-msvc-0.217.0.tgz#11ffe3a23716b8ed0bdb5174be34650ed0b5e5a6"
+  integrity sha512-0MhYErNFrV4VX7/i8Cx9ZwWlwIOt9OofwcpiVx3h8QTR26ZtPDYAiht6DIh4P/X6baVwGkzE7jmb7Ao/jp3Fvg==
+
+"@boundaryml/baml@^0.217.0":
+  version "0.217.0"
+  resolved "https://registry.yarnpkg.com/@boundaryml/baml/-/baml-0.217.0.tgz#ec4e87a1c17af8dee64e27e17643765493a1f4b3"
+  integrity sha512-PDPm/EkbR5ClbP2qorxMnUqgiDcI68u0ED667NAKgjBu+u2BeWb/mRW26ebX5BvY0Ce9pDtlmRD/vHH+rXRAtg==
+  dependencies:
+    "@scarf/scarf" "^1.3.0"
+  optionalDependencies:
+    "@boundaryml/baml-darwin-arm64" "0.217.0"
+    "@boundaryml/baml-darwin-x64" "0.217.0"
+    "@boundaryml/baml-linux-arm64-gnu" "0.217.0"
+    "@boundaryml/baml-linux-arm64-musl" "0.217.0"
+    "@boundaryml/baml-linux-x64-gnu" "0.217.0"
+    "@boundaryml/baml-linux-x64-musl" "0.217.0"
+    "@boundaryml/baml-win32-arm64-msvc" "0.217.0"
+    "@boundaryml/baml-win32-x64-msvc" "0.217.0"
+
 "@chevrotain/cst-dts-gen@10.5.0":
   version "10.5.0"
   resolved "https://registry.yarnpkg.com/@chevrotain/cst-dts-gen/-/cst-dts-gen-10.5.0.tgz#922ebd8cc59d97241bb01b1b17561a5c1ae0124e"
@@ -2754,6 +2810,11 @@
   version "3.5.5"
   resolved "https://registry.yarnpkg.com/@sapphire/snowflake/-/snowflake-3.5.5.tgz#33a60ab4231e3cab29e8a0077f342125f2c8d1bd"
   integrity sha512-xzvBr1Q1c4lCe7i6sRnrofxeO1QTP/LKQ6A6qy0iB4x5yfiSfARMEQEghojzTNALDTcv8En04qYNIco9/K9eZQ==
+
+"@scarf/scarf@^1.3.0":
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/@scarf/scarf/-/scarf-1.4.0.tgz#3bbb984085dbd6d982494538b523be1ce6562972"
+  integrity sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==
 
 "@sinclair/typebox@^0.24.1":
   version "0.24.51"

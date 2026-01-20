@@ -14,12 +14,14 @@ export function generateMessageHash(
 	phoneNumber: string,
 	isFromMe: boolean,
 	timestamp: string,
-	content: string,
+	content: string | null,
 ): string {
 	const direction = isFromMe ? 'out' : 'in';
 
 	// Generate a 4-character hash of the content using MD5 and base64
-	const contentHash = createHash('md5').update(content).digest('base64').substring(0, 4);
+	// Handle null/empty content (e.g., image-only messages)
+	const safeContent = content || '';
+	const contentHash = createHash('md5').update(safeContent).digest('base64').substring(0, 4);
 
 	return `${phoneNumber}:${direction}:${timestamp}:${contentHash}`;
 }

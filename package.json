@@ -11,6 +11,7 @@
 		"url": "https://github.com/julianh2o/TEMPLATE_REPLACEME"
 	},
 	"dependencies": {
+		"@boundaryml/baml": "^0.217.0",
 		"@libsql/client": "^0.15.15",
 		"@prisma/adapter-libsql": "^7.2.0",
 		"@prisma/client": "^7.2.0",
@@ -53,7 +54,8 @@
 		"prisma:migrate": "prisma migrate dev",
 		"prisma:migrate:deploy": "prisma migrate deploy",
 		"prisma:studio": "prisma studio",
-		"prisma:seed": "tsx prisma/seed.ts"
+		"prisma:seed": "tsx prisma/seed.ts",
+		"baml:generate": "npx baml-cli generate"
 	},
 	"eslintConfig": {
 		"extends": [
@@ -61,6 +63,7 @@
 			"react-app/jest"
 		]
 	},
+	"proxy": "http://localhost:2999",
 	"browserslist": {
 		"production": [
 			">0.2%",

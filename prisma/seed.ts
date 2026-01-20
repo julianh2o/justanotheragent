@@ -18,6 +18,7 @@ const channelTypes = [
 ];
 
 const customFieldDefinitions = [
+	{ id: 'transient_info', name: 'Transient Info' },
 	{ id: 'love_language', name: 'Love Language' },
 	{ id: 'difficult_love_languages', name: 'Difficult Love Languages' },
 	{ id: 'music', name: 'Music' },
