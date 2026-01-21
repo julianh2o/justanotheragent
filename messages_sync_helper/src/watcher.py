@@ -20,7 +20,7 @@ class MessagesDBEventHandler(FileSystemEventHandler):
         super().__init__()
         self.callback = callback
         self.debounce_seconds = debounce_seconds
-        self._debounce_task: Optional[asyncio.Task] = None
+        self._debounce_handle: Optional[asyncio.TimerHandle] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
@@ -45,11 +45,11 @@ class MessagesDBEventHandler(FileSystemEventHandler):
             return
 
         # Cancel any pending debounce
-        if self._debounce_task and not self._debounce_task.done():
-            self._debounce_task.cancel()
+        if self._debounce_handle is not None:
+            self._debounce_handle.cancel()
 
         # Schedule new debounced callback
-        self._debounce_task = self._loop.call_later(self.debounce_seconds, self.callback)
+        self._debounce_handle = self._loop.call_later(self.debounce_seconds, self.callback)
 
 
 class MessagesDatabaseWatcher:

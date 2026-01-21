@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -8,7 +8,6 @@ import {
   Checkbox,
   FormControlLabel,
   Collapse,
-  IconButton,
   Chip,
   CircularProgress,
   Alert,
@@ -55,35 +54,92 @@ export default function SuggestedUpdates({ contactId, onUpdatesApplied }: Sugges
   const [queuePosition, setQueuePosition] = useState<QueuePosition | null>(null);
   const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | null>(null);
 
+  // Track which update IDs we've seen (for animation)
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  const knownIdsRef = useRef<Set<string>>(new Set());
+
   const loadUpdates = useCallback(async () => {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load
+      if (updates.length === 0) {
+        setLoading(true);
+      }
       setError(null);
+
       const [data, position, status] = await Promise.all([
         fetchSuggestedUpdates(contactId),
         fetchQueuePosition(contactId),
         fetchAnalysisStatus(contactId),
       ]);
+
+      // Find new updates that we haven't seen before
+      const newIds = data.filter((u) => !knownIdsRef.current.has(u.id)).map((u) => u.id);
+
+      // Update known IDs
+      data.forEach((u) => knownIdsRef.current.add(u.id));
+
+      // Initialize selection state only for new updates
+      setSelectedFields((prev) => {
+        const next = { ...prev };
+        for (const update of data) {
+          if (!next[update.id]) {
+            next[update.id] = new Set(update.suggestedChanges.fieldSuggestions.map((f) => f.fieldId));
+          }
+        }
+        // Clean up removed updates
+        const currentIds = new Set(data.map((u) => u.id));
+        for (const id of Object.keys(next)) {
+          if (!currentIds.has(id)) {
+            delete next[id];
+          }
+        }
+        return next;
+      });
+
+      setSelectedTags((prev) => {
+        const next = { ...prev };
+        for (const update of data) {
+          if (!next[update.id]) {
+            next[update.id] = new Set(update.suggestedChanges.tagSuggestions.map((t) => t.tagName));
+          }
+        }
+        // Clean up removed updates
+        const currentIds = new Set(data.map((u) => u.id));
+        for (const id of Object.keys(next)) {
+          if (!currentIds.has(id)) {
+            delete next[id];
+          }
+        }
+        return next;
+      });
+
       setUpdates(data);
       setQueuePosition(position);
       setAnalysisStatus(status);
 
-      // Initialize selection state
-      const fields: Record<string, Set<string>> = {};
-      const tags: Record<string, Set<string>> = {};
-      for (const update of data) {
-        fields[update.id] = new Set(update.suggestedChanges.fieldSuggestions.map((f) => f.fieldId));
-        tags[update.id] = new Set(update.suggestedChanges.tagSuggestions.map((t) => t.tagName));
+      // Animate in new items after a brief delay
+      if (newIds.length > 0) {
+        // First render them collapsed
+        setTimeout(() => {
+          setVisibleIds((prev) => {
+            const next = new Set(prev);
+            newIds.forEach((id) => next.add(id));
+            return next;
+          });
+        }, 50);
       }
-      setSelectedFields(fields);
-      setSelectedTags(tags);
+
+      // Mark all existing items as visible on initial load
+      if (updates.length === 0 && data.length > 0) {
+        setVisibleIds(new Set(data.map((u) => u.id)));
+      }
     } catch (err) {
       setError('Failed to load suggested updates');
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [contactId]);
+  }, [contactId, updates.length]);
 
   useEffect(() => {
     loadUpdates();
@@ -154,22 +210,44 @@ export default function SuggestedUpdates({ contactId, onUpdatesApplied }: Sugges
 
   const handleAcceptAll = async (updateId: string) => {
     try {
-      await acceptUpdate(updateId);
-      await loadUpdates();
-      onUpdatesApplied();
+      // Animate out before removing
+      setVisibleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(updateId);
+        return next;
+      });
+      // Wait for animation then actually process
+      setTimeout(async () => {
+        await acceptUpdate(updateId);
+        await loadUpdates();
+        onUpdatesApplied();
+      }, 300);
     } catch (err) {
       setError('Failed to accept update');
       console.error(err);
+      // Restore visibility on error
+      setVisibleIds((prev) => new Set([...Array.from(prev), updateId]));
     }
   };
 
   const handleReject = async (updateId: string) => {
     try {
-      await rejectUpdate(updateId);
-      await loadUpdates();
+      // Animate out before removing
+      setVisibleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(updateId);
+        return next;
+      });
+      // Wait for animation then actually process
+      setTimeout(async () => {
+        await rejectUpdate(updateId);
+        await loadUpdates();
+      }, 300);
     } catch (err) {
       setError('Failed to reject update');
       console.error(err);
+      // Restore visibility on error
+      setVisibleIds((prev) => new Set([...Array.from(prev), updateId]));
     }
   };
 
@@ -177,12 +255,23 @@ export default function SuggestedUpdates({ contactId, onUpdatesApplied }: Sugges
     try {
       const fieldIds = Array.from(selectedFields[updateId] || []);
       const tagNames = Array.from(selectedTags[updateId] || []);
-      await partialAcceptUpdate(updateId, fieldIds, tagNames);
-      await loadUpdates();
-      onUpdatesApplied();
+      // Animate out before removing
+      setVisibleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(updateId);
+        return next;
+      });
+      // Wait for animation then actually process
+      setTimeout(async () => {
+        await partialAcceptUpdate(updateId, fieldIds, tagNames);
+        await loadUpdates();
+        onUpdatesApplied();
+      }, 300);
     } catch (err) {
       setError('Failed to accept selected changes');
       console.error(err);
+      // Restore visibility on error
+      setVisibleIds((prev) => new Set([...Array.from(prev), updateId]));
     }
   };
 
@@ -332,88 +421,94 @@ export default function SuggestedUpdates({ contactId, onUpdatesApplied }: Sugges
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {updates.map((update) => (
-            <Card key={update.id} variant='outlined'>
-              <CardContent sx={{ pb: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
-                      {new Date(update.createdAt).toLocaleString()}
-                    </Typography>
+            <Collapse key={update.id} in={visibleIds.has(update.id)} timeout={300} unmountOnExit>
+              <Card variant='outlined'>
+                <CardContent sx={{ pb: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant='body2' color='text.secondary' sx={{ mb: 1 }}>
+                        {new Date(update.createdAt).toLocaleString()}
+                      </Typography>
 
-                    {/* Field Suggestions */}
-                    {update.suggestedChanges.fieldSuggestions.map((field) => (
-                      <FieldSuggestionItem
-                        key={field.fieldId}
-                        suggestion={field}
-                        selected={selectedFields[update.id]?.has(field.fieldId) ?? false}
-                        onToggle={() => toggleFieldSelection(update.id, field.fieldId)}
-                      />
-                    ))}
+                      {/* Field Suggestions */}
+                      {update.suggestedChanges.fieldSuggestions.map((field) => (
+                        <FieldSuggestionItem
+                          key={field.fieldId}
+                          suggestion={field}
+                          selected={selectedFields[update.id]?.has(field.fieldId) ?? false}
+                          onToggle={() => toggleFieldSelection(update.id, field.fieldId)}
+                        />
+                      ))}
 
-                    {/* Tag Suggestions */}
-                    {update.suggestedChanges.tagSuggestions.map((tag) => (
-                      <TagSuggestionItem
-                        key={tag.tagName}
-                        suggestion={tag}
-                        selected={selectedTags[update.id]?.has(tag.tagName) ?? false}
-                        onToggle={() => toggleTagSelection(update.id, tag.tagName)}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-
-                {/* Conversation snippet toggle */}
-                <Box sx={{ mt: 1 }}>
-                  <Button
-                    size='small'
-                    onClick={() => setExpandedId(expandedId === update.id ? null : update.id)}
-                    endIcon={expandedId === update.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    sx={{ textTransform: 'none' }}>
-                    View source conversation
-                  </Button>
-                  <Collapse in={expandedId === update.id}>
-                    <Box
-                      sx={{
-                        mt: 1,
-                        p: 1.5,
-                        bgcolor: 'grey.50',
-                        borderRadius: 1,
-                        fontSize: '0.75rem',
-                        fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap',
-                        maxHeight: 200,
-                        overflow: 'auto',
-                      }}>
-                      {update.conversationSnippet}
+                      {/* Tag Suggestions */}
+                      {update.suggestedChanges.tagSuggestions.map((tag) => (
+                        <TagSuggestionItem
+                          key={tag.tagName}
+                          suggestion={tag}
+                          selected={selectedTags[update.id]?.has(tag.tagName) ?? false}
+                          onToggle={() => toggleTagSelection(update.id, tag.tagName)}
+                        />
+                      ))}
                     </Box>
-                  </Collapse>
-                </Box>
+                  </Box>
 
-                <Divider sx={{ my: 1.5 }} />
+                  {/* Conversation snippet toggle */}
+                  <Box sx={{ mt: 1 }}>
+                    <Button
+                      size='small'
+                      onClick={() => setExpandedId(expandedId === update.id ? null : update.id)}
+                      endIcon={expandedId === update.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                      sx={{ textTransform: 'none' }}>
+                      View source conversation
+                    </Button>
+                    <Collapse in={expandedId === update.id}>
+                      <Box
+                        sx={{
+                          mt: 1,
+                          p: 1.5,
+                          bgcolor: 'action.hover',
+                          borderRadius: 1,
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          maxHeight: 200,
+                          overflow: 'auto',
+                        }}>
+                        {update.conversationSnippet}
+                      </Box>
+                    </Collapse>
+                  </Box>
 
-                {/* Action buttons */}
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                  <Button size='small' color='error' startIcon={<RejectIcon />} onClick={() => handleReject(update.id)}>
-                    Reject All
-                  </Button>
-                  <Button
-                    size='small'
-                    variant='outlined'
-                    onClick={() => handleAcceptSelected(update.id)}
-                    disabled={getSelectionCount(update.id) === 0}>
-                    Accept Selected ({getSelectionCount(update.id)}/{getTotalCount(update)})
-                  </Button>
-                  <Button
-                    size='small'
-                    variant='contained'
-                    color='success'
-                    startIcon={<AcceptIcon />}
-                    onClick={() => handleAcceptAll(update.id)}>
-                    Accept All
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
+                  <Divider sx={{ my: 1.5 }} />
+
+                  {/* Action buttons */}
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                    <Button
+                      size='small'
+                      color='error'
+                      startIcon={<RejectIcon />}
+                      onClick={() => handleReject(update.id)}>
+                      Reject All
+                    </Button>
+                    <Button
+                      size='small'
+                      variant='outlined'
+                      onClick={() => handleAcceptSelected(update.id)}
+                      disabled={getSelectionCount(update.id) === 0}>
+                      Accept Selected ({getSelectionCount(update.id)}/{getTotalCount(update)})
+                    </Button>
+                    <Button
+                      size='small'
+                      variant='contained'
+                      color='success'
+                      startIcon={<AcceptIcon />}
+                      onClick={() => handleAcceptAll(update.id)}>
+                      Accept All
+                    </Button>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Collapse>
           ))}
         </Box>
       )}

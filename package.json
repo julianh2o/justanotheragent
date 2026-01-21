@@ -32,7 +32,7 @@
   },
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "concurrently -n client,server -c blue,green \"yarn dev:client\" \"yarn dev:server\"",
+    "dev": "yarn baml:generate && concurrently -n client,server -c blue,green \"yarn dev:client\" \"yarn dev:server\"",
     "dev:client": "PORT=2998 react-scripts start",
     "dev:server": "prisma migrate dev && NODE_ENV=development nodemon --watch server --ext ts --watch prisma/schema.prisma --exec 'tsx server/index.ts'",
     "build": "BUILD_PATH=build/public react-scripts build",
@@ -57,7 +57,8 @@
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "baml:generate": "npx baml-cli generate",
-    "syncer": "cd messages_sync_helper && venv/bin/python -m src"
+    "syncer": "cd messages_sync_helper && venv/bin/python -m src",
+    "ollama:models": "curl -s https://ollama.julianverse.net/api/tags | node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));console.log('Model'.padEnd(30)+'Size'.padEnd(10)+'Params'.padEnd(12)+'Quant');console.log('-'.repeat(60));d.models.forEach(m=>console.log(m.name.padEnd(30)+(m.size/1e9).toFixed(1).padStart(5)+'GB'.padEnd(5)+m.details.parameter_size.padEnd(12)+m.details.quantization_level))\""
   },
   "eslintConfig": {
     "extends": [

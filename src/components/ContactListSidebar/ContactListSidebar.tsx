@@ -15,6 +15,7 @@ import {
   ListItemIcon,
   ListSubheader,
   Chip,
+  Collapse,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -26,30 +27,13 @@ import {
   Notifications as NotificationsIcon,
   DeleteForever as PurgeIcon,
   AdminPanelSettings as AdminIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { Contact } from '../../types';
-import TagChip, { parseTagName } from '../TagChip';
+import TagChip from '../TagChip';
 import { formatPhoneForDisplay } from '../../utils/phoneNumber';
-
-// Outreach frequency sections configuration
-// Each section defines a label and the maximum days for that section (inclusive)
-// Contacts are placed in the first section where their outreachFrequencyDays <= maxDays
-// The last section (Others) captures contacts with no outreachFrequencyDays set
-interface FrequencySection {
-  id: string;
-  label: string;
-  maxDays: number | null; // null means no upper limit (for "Others" section)
-}
-
-const FREQUENCY_SECTIONS: FrequencySection[] = [
-  { id: 'daily', label: 'Every Few Days (1-3)', maxDays: 3 },
-  { id: 'weekly', label: 'Weekly (~7 days)', maxDays: 10 },
-  { id: 'biweekly', label: 'Bi-weekly (~14 days)', maxDays: 21 },
-  { id: 'monthly', label: 'Monthly (~30 days)', maxDays: 45 },
-  { id: 'quarterly', label: 'Quarterly (~90 days)', maxDays: 120 },
-  { id: 'others', label: 'Others', maxDays: null },
-];
 
 // Outreach status: how many days until outreach is due (negative = overdue)
 interface OutreachStatus {
@@ -60,8 +44,18 @@ interface OutreachStatus {
 }
 
 function getOutreachStatus(contact: Contact): OutreachStatus | null {
-  if (!contact.outreachFrequencyDays || !contact.lastContacted) {
+  if (!contact.outreachFrequencyDays) {
     return null;
+  }
+
+  // If no lastContacted but has frequency, treat as "never contacted" (overdue)
+  if (!contact.lastContacted) {
+    return {
+      daysUntilDue: -Infinity,
+      daysSinceContact: Infinity,
+      isOverdue: true,
+      label: 'Never',
+    };
   }
 
   const lastContactedDate = new Date(contact.lastContacted);
@@ -80,6 +74,30 @@ function getOutreachStatus(contact: Contact): OutreachStatus | null {
   }
 
   return { daysUntilDue, daysSinceContact, isOverdue, label };
+}
+
+function formatLastContacted(date: Date | string | null | undefined): string {
+  if (!date) return 'Never';
+  const d = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+  return `${Math.floor(diffDays / 365)}y ago`;
+}
+
+function formatFrequency(days: number): string {
+  if (days <= 3) return 'every few days';
+  if (days <= 10) return 'weekly';
+  if (days <= 21) return 'bi-weekly';
+  if (days <= 45) return 'monthly';
+  if (days <= 120) return 'quarterly';
+  return `every ${days}d`;
 }
 
 interface ContactListSidebarProps {
@@ -107,6 +125,7 @@ export default function ContactListSidebar({
 }: ContactListSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [upcomingExpanded, setUpcomingExpanded] = useState(false);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchor(event.currentTarget);
@@ -160,40 +179,44 @@ export default function ContactListSidebar({
     });
   }, [contacts, searchQuery]);
 
-  // Group contacts by outreach frequency sections
-  const groupedContacts = useMemo(() => {
-    const groups: Map<string, Contact[]> = new Map();
+  // Organize contacts into sections
+  const { overdueContacts, upcomingContacts, remainingContacts } = useMemo(() => {
+    const withStatus = filteredContacts.map((contact) => ({
+      contact,
+      status: getOutreachStatus(contact),
+    }));
 
-    // Initialize all groups
-    FREQUENCY_SECTIONS.forEach((section) => {
-      groups.set(section.id, []);
-    });
+    // Overdue contacts (sorted by most overdue first)
+    const overdue = withStatus
+      .filter((c) => c.status?.isOverdue)
+      .sort((a, b) => (a.status?.daysUntilDue ?? 0) - (b.status?.daysUntilDue ?? 0))
+      .map((c) => c.contact);
 
-    // Sort contacts into appropriate sections
-    filteredContacts.forEach((contact) => {
-      const freq = contact.outreachFrequencyDays;
+    // Upcoming contacts (have frequency, not overdue, sorted by soonest due)
+    const upcoming = withStatus
+      .filter((c) => c.status && !c.status.isOverdue)
+      .sort((a, b) => (a.status?.daysUntilDue ?? 0) - (b.status?.daysUntilDue ?? 0))
+      .map((c) => c.contact);
 
-      if (freq == null) {
-        // No frequency set -> Others
-        groups.get('others')!.push(contact);
-      } else {
-        // Find the first section where freq <= maxDays
-        let placed = false;
-        for (const section of FREQUENCY_SECTIONS) {
-          if (section.maxDays !== null && freq <= section.maxDays) {
-            groups.get(section.id)!.push(contact);
-            placed = true;
-            break;
-          }
-        }
-        // If freq is larger than all maxDays, put in Others
-        if (!placed) {
-          groups.get('others')!.push(contact);
-        }
-      }
-    });
+    // Get IDs of contacts in the top section (first 3 overdue or first 3 upcoming)
+    const topSectionIds = new Set(
+      overdue.length > 0 ? overdue.slice(0, 3).map((c) => c.id) : upcoming.slice(0, 3).map((c) => c.id),
+    );
 
-    return groups;
+    // Remaining contacts (everyone not in the top section), sorted by lastContacted descending
+    const remaining = filteredContacts
+      .filter((c) => !topSectionIds.has(c.id))
+      .sort((a, b) => {
+        const aDate = a.lastContacted ? new Date(a.lastContacted).getTime() : 0;
+        const bDate = b.lastContacted ? new Date(b.lastContacted).getTime() : 0;
+        return bDate - aDate; // Most recent first
+      });
+
+    return {
+      overdueContacts: overdue.slice(0, 3),
+      upcomingContacts: upcoming.slice(0, 3),
+      remainingContacts: remaining,
+    };
   }, [filteredContacts]);
 
   const getInitials = (contact: Contact): string => {
@@ -202,18 +225,68 @@ export default function ContactListSidebar({
     return (first + last).toUpperCase() || '?';
   };
 
-  const getSubtitle = (contact: Contact): string => {
-    const email = contact.channels.find((c) => c.type === 'email')?.identifier;
-    const phone = contact.channels.find((c) => c.type === 'phone')?.identifier;
-    if (email) return email;
-    if (phone) return formatPhoneForDisplay(phone);
-    return '';
-  };
-
   // Get tags that should be displayed in the sidebar (those starting with _)
   const getSidebarTags = (contact: Contact): string[] => {
     return contact.tags.map((t) => t.tag.name).filter((name) => name.startsWith('_'));
   };
+
+  const renderContactItem = (contact: Contact, showOverduePill: boolean = false) => {
+    const sidebarTags = getSidebarTags(contact);
+    const outreachStatus = getOutreachStatus(contact);
+
+    return (
+      <ListItemButton
+        key={contact.id}
+        selected={contact.id === selectedContactId}
+        onClick={() => onSelectContact(contact)}
+        sx={{
+          borderBottom: 1,
+          borderColor: 'divider',
+          '&.Mui-selected': {
+            backgroundColor: 'action.selected',
+          },
+        }}>
+        <ListItemAvatar>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>{getInitials(contact)}</Avatar>
+        </ListItemAvatar>
+        <ListItemText
+          primary={
+            <Typography variant='body1' sx={{ fontWeight: 500 }}>
+              {contact.firstName} {contact.lastName}
+            </Typography>
+          }
+          secondary={
+            <Box component='span' sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+              <Typography component='span' variant='caption' color='text.secondary'>
+                {formatLastContacted(contact.lastContacted)}
+                {contact.outreachFrequencyDays && ` · ${formatFrequency(contact.outreachFrequencyDays)}`}
+              </Typography>
+            </Box>
+          }
+        />
+        <Box sx={{ display: 'flex', gap: 0.5, ml: 1, flexShrink: 0 }}>
+          {showOverduePill && outreachStatus?.isOverdue && (
+            <Chip
+              label={outreachStatus.label}
+              size='small'
+              sx={{
+                backgroundColor: 'error.main',
+                color: 'white',
+                fontWeight: 500,
+                fontSize: '0.7rem',
+                height: 20,
+              }}
+            />
+          )}
+          {sidebarTags.map((tagName) => (
+            <TagChip key={tagName} tagName={tagName} size='small' />
+          ))}
+        </Box>
+      </ListItemButton>
+    );
+  };
+
+  const hasOverdue = overdueContacts.length > 0;
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRight: 1, borderColor: 'divider' }}>
@@ -289,79 +362,76 @@ export default function ContactListSidebar({
           </Box>
         ) : (
           <List disablePadding>
-            {FREQUENCY_SECTIONS.map((section) => {
-              const sectionContacts = groupedContacts.get(section.id) || [];
-              if (sectionContacts.length === 0) return null;
+            {/* Top Section: Overdue or Upcoming */}
+            {hasOverdue ? (
+              <>
+                <ListSubheader
+                  sx={{
+                    bgcolor: 'error.dark',
+                    color: 'error.contrastText',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    lineHeight: '32px',
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                  }}>
+                  Overdue Reachouts
+                </ListSubheader>
+                {overdueContacts.map((contact) => renderContactItem(contact, true))}
+              </>
+            ) : upcomingContacts.length > 0 ? (
+              <>
+                <ListSubheader
+                  onClick={() => setUpcomingExpanded(!upcomingExpanded)}
+                  sx={{
+                    bgcolor: 'background.default',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: 'text.secondary',
+                    lineHeight: '32px',
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    },
+                  }}>
+                  <span>Upcoming Reachouts</span>
+                  {upcomingExpanded ? <ExpandLessIcon fontSize='small' /> : <ExpandMoreIcon fontSize='small' />}
+                </ListSubheader>
+                <Collapse in={upcomingExpanded}>
+                  {upcomingContacts.map((contact) => renderContactItem(contact, false))}
+                </Collapse>
+              </>
+            ) : null}
 
-              return (
-                <React.Fragment key={section.id}>
-                  <ListSubheader
-                    sx={{
-                      bgcolor: 'background.default',
-                      fontWeight: 600,
-                      fontSize: '0.75rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: 'text.secondary',
-                      lineHeight: '32px',
-                      borderBottom: 1,
-                      borderColor: 'divider',
-                    }}>
-                    {section.label}
-                  </ListSubheader>
-                  {sectionContacts.map((contact) => {
-                    const sidebarTags = getSidebarTags(contact);
-                    const outreachStatus = getOutreachStatus(contact);
-                    return (
-                      <ListItemButton
-                        key={contact.id}
-                        selected={contact.id === selectedContactId}
-                        onClick={() => onSelectContact(contact)}
-                        sx={{
-                          borderBottom: 1,
-                          borderColor: 'divider',
-                          '&.Mui-selected': {
-                            backgroundColor: 'action.selected',
-                          },
-                        }}>
-                        <ListItemAvatar>
-                          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
-                            {getInitials(contact)}
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Typography variant='body1' sx={{ fontWeight: 500 }}>
-                              {contact.firstName} {contact.lastName}
-                            </Typography>
-                          }
-                          secondary={getSubtitle(contact)}
-                          secondaryTypographyProps={{ noWrap: true }}
-                        />
-                        <Box sx={{ display: 'flex', gap: 0.5, ml: 1, flexShrink: 0 }}>
-                          {outreachStatus && (
-                            <Chip
-                              label={outreachStatus.label}
-                              size='small'
-                              sx={{
-                                backgroundColor: outreachStatus.isOverdue ? 'error.main' : 'info.main',
-                                color: 'white',
-                                fontWeight: 500,
-                                fontSize: '0.7rem',
-                                height: 20,
-                              }}
-                            />
-                          )}
-                          {sidebarTags.map((tagName) => (
-                            <TagChip key={tagName} tagName={tagName} size='small' />
-                          ))}
-                        </Box>
-                      </ListItemButton>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            })}
+            {/* Remaining Contacts */}
+            {remainingContacts.length > 0 && (
+              <>
+                <ListSubheader
+                  sx={{
+                    bgcolor: 'background.default',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: 'text.secondary',
+                    lineHeight: '32px',
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                  }}>
+                  All Contacts
+                </ListSubheader>
+                {remainingContacts.map((contact) => renderContactItem(contact, true))}
+              </>
+            )}
           </List>
         )}
       </Box>

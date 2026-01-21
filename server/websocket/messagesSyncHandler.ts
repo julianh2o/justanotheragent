@@ -6,6 +6,8 @@ import {
   getSyncCursor,
   updateSyncCursor,
   getMaxStoredRowid,
+  getMinStoredRowid,
+  getStoredMessageCount,
   type IncomingMessage,
   type IncomingAttachment,
 } from '../services/messageStorage';
@@ -253,29 +255,58 @@ export function isHistorySyncInProgress(): boolean {
   return historySyncInProgress;
 }
 
-export function startHistorySync(): void {
+// Track sync mode: 'new' for fetching newer messages, 'old' for backfilling older
+let syncMode: 'new' | 'old' = 'new';
+
+export async function startHistorySync(): Promise<void> {
   if (historySyncInProgress) {
     console.log('[MessageSync] History sync already in progress');
     return;
   }
 
-  historySyncInProgress = true;
-  historyBatchesLoaded = 0;
-  console.log('[MessageSync] Starting reverse chronological history sync');
+  const [messageCount, maxRowid, minRowid] = await Promise.all([
+    getStoredMessageCount(),
+    getMaxStoredRowid(),
+    getMinStoredRowid(),
+  ]);
 
-  // Request latest messages to start
-  requestLatestHistory(BATCH_SIZE);
+  console.log(`[MessageSync] Current state: ${messageCount} messages stored, rowid range ${minRowid}-${maxRowid}`);
+
+  if (messageCount === 0) {
+    // No messages stored, start from latest and work backwards
+    historySyncInProgress = true;
+    historyBatchesLoaded = 0;
+    syncMode = 'old';
+    console.log('[MessageSync] No messages stored, starting fresh sync from latest');
+    requestLatestHistory(BATCH_SIZE);
+  } else {
+    // We have messages - first get any new messages since our max rowid
+    historySyncInProgress = true;
+    historyBatchesLoaded = 0;
+    syncMode = 'new';
+    console.log(`[MessageSync] Requesting new messages since rowid ${maxRowid}`);
+    requestHistorySince(maxRowid, BATCH_SIZE);
+  }
 }
 
 async function handleHistoryResponse(data: HistoryResponsePayload): Promise<void> {
   const messageCount = data.messages.length;
-  const direction = data.before_rowid ? 'before' : 'since';
+  const direction = data.before_rowid ? 'before' : data.since_rowid ? 'since' : 'latest';
   const rowid = data.before_rowid || data.since_rowid || 'latest';
 
-  console.log(`[MessageSync] Received ${messageCount} historical messages (${direction} rowid ${rowid})`);
+  // Log rowid range if we have messages
+  if (messageCount > 0) {
+    const minRowid = Math.min(...data.messages.map((m) => m.rowid));
+    const maxRowid = Math.max(...data.messages.map((m) => m.rowid));
+    console.log(
+      `[MessageSync] Received ${messageCount} messages (${direction} rowid ${rowid}, range ${minRowid}-${maxRowid})`,
+    );
+  } else {
+    console.log(`[MessageSync] Received 0 messages (${direction} rowid ${rowid})`);
+  }
 
   const count = await storeMessages(data.messages);
-  console.log(`[MessageSync] Stored ${count} historical messages`);
+  console.log(`[MessageSync] Stored ${count} messages`);
 
   // Update sync cursor to highest rowid we've seen
   if (data.messages.length > 0) {
@@ -286,35 +317,65 @@ async function handleHistoryResponse(data: HistoryResponsePayload): Promise<void
     }
   }
 
-  // If we're doing a reverse chronological sync, continue loading more
+  // If we're doing a history sync, continue loading more
   if (historySyncInProgress) {
     historyBatchesLoaded++;
 
-    // Check if we should continue loading
     const hasMore = data.has_more !== false && messageCount === BATCH_SIZE;
-    const shouldContinue = hasMore && historyBatchesLoaded < MAX_HISTORY_BATCHES;
 
-    if (shouldContinue && data.messages.length > 0) {
-      // Get the minimum rowid from this batch to request the next batch before it
-      const minRowid = Math.min(...data.messages.map((m) => m.rowid));
-      console.log(
-        `[MessageSync] Batch ${historyBatchesLoaded}/${MAX_HISTORY_BATCHES} complete, requesting next batch before rowid ${minRowid}`,
-      );
+    if (syncMode === 'new') {
+      // We were fetching new messages (since our max rowid)
+      if (hasMore && data.messages.length > 0) {
+        // More new messages to fetch
+        const batchMaxRowid = Math.max(...data.messages.map((m) => m.rowid));
+        console.log(
+          `[MessageSync] Batch ${historyBatchesLoaded} complete, requesting more new messages since rowid ${batchMaxRowid}`,
+        );
+        setTimeout(() => {
+          requestHistorySince(batchMaxRowid, BATCH_SIZE);
+        }, 100);
+      } else {
+        // Done fetching new messages, now backfill older ones
+        console.log('[MessageSync] Finished fetching new messages, switching to backfill mode');
+        syncMode = 'old';
+        historyBatchesLoaded = 0;
 
-      // Small delay between batches to avoid overwhelming the system
-      setTimeout(() => {
-        requestHistoryBefore(minRowid, BATCH_SIZE);
-      }, 100);
+        // Get our current min rowid to backfill before it
+        const currentMinRowid = await getMinStoredRowid();
+        if (currentMinRowid > 0) {
+          console.log(`[MessageSync] Starting backfill before rowid ${currentMinRowid}`);
+          setTimeout(() => {
+            requestHistoryBefore(currentMinRowid, BATCH_SIZE);
+          }, 100);
+        } else {
+          // No messages to backfill from
+          historySyncInProgress = false;
+          console.log('[MessageSync] History sync complete (no backfill needed)');
+          if (onHistorySyncCompleteCallback) {
+            onHistorySyncCompleteCallback();
+          }
+        }
+      }
     } else {
-      // Sync complete
-      historySyncInProgress = false;
-      const reason = !hasMore ? 'no more messages' : 'reached batch limit';
-      console.log(
-        `[MessageSync] History sync complete (${reason}). Loaded ${historyBatchesLoaded} batches, ~${historyBatchesLoaded * BATCH_SIZE} messages`,
-      );
+      // syncMode === 'old' - we're backfilling older messages
+      const shouldContinue = hasMore && historyBatchesLoaded < MAX_HISTORY_BATCHES;
 
-      if (onHistorySyncCompleteCallback) {
-        onHistorySyncCompleteCallback();
+      if (shouldContinue && data.messages.length > 0) {
+        const batchMinRowid = Math.min(...data.messages.map((m) => m.rowid));
+        console.log(
+          `[MessageSync] Backfill batch ${historyBatchesLoaded}/${MAX_HISTORY_BATCHES} complete, requesting before rowid ${batchMinRowid}`,
+        );
+        setTimeout(() => {
+          requestHistoryBefore(batchMinRowid, BATCH_SIZE);
+        }, 100);
+      } else {
+        // Sync complete
+        historySyncInProgress = false;
+        const reason = !hasMore ? 'no more messages' : 'reached batch limit';
+        console.log(`[MessageSync] History sync complete (${reason}). Loaded ${historyBatchesLoaded} backfill batches`);
+        if (onHistorySyncCompleteCallback) {
+          onHistorySyncCompleteCallback();
+        }
       }
     }
   }

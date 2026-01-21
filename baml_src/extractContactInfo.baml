@@ -15,8 +15,8 @@ class TagSuggestion {
 }
 
 class SuggestedUpdates {
-  fieldSuggestions FieldSuggestion[] @description("Suggested updates to contact fields")
-  tagSuggestions TagSuggestion[] @description("Suggested tags to add to the contact")
+  fieldSuggestions FieldSuggestion[] @description("Suggested updates to contact fields. Empty array if nothing noteworthy.")
+  tagSuggestions TagSuggestion[] @description("Suggested tags to add to the contact. Empty array if no tags apply.")
 }
 
 class ConversationInput {
@@ -32,52 +32,60 @@ function ExtractContactInfo(input: ConversationInput) -> SuggestedUpdates {
   client Ollama
 
   prompt #"
-    You are analyzing a conversation to extract useful information about a contact named {{ input.contactName }}.
+    You are a strict filter analyzing a conversation for ONLY highly significant, explicitly stated facts about {{ input.contactName }}.
 
-    Today's date is: {{ input.currentDate }}
+    Today's date: {{ input.currentDate }}
 
     CONVERSATION:
     {{ input.conversationSnippet }}
 
-    AVAILABLE FIELDS TO UPDATE:
-    - birthday: The contact's birthday (format: YYYY-MM-DD)
-    - notes: General notes about the contact
-    - transient_info: Short-term or time-sensitive information like travel plans, temporary situations, upcoming events
-    {{ input.availableFields }}. IMPORTANT: only include these if they are still relevant near the current date. (old travel plans can be ignored unless they are clearly recurring)
-
-    CURRENT VALUES:
+    CURRENT VALUES (do not duplicate):
     {{ input.currentValues }}
 
-    AVAILABLE TAGS (only suggest from this list):
+    AVAILABLE FIELDS:
+    - birthday: Contact's birthday (YYYY-MM-DD) - ONLY if they explicitly state their birth date
+    - notes: Significant personal facts - ONLY for major life facts explicitly stated
+    - transient_info: Time-sensitive info with dates (e.g., "Traveling to SF Jan 20-24")
+    {{ input.availableFields }}
+
+    AVAILABLE TAGS (only from this list, or leave empty):
     {{ input.availableTags }}
 
-    INSTRUCTIONS:
-    1. Analyze the conversation for any useful information about {{ input.contactName }}
-    2. Look specifically for:
-       - Travel dates and short-term plans (e.g., "I'm leaving for SF tomorrow until Thursday") - use transient_info field
-       - Birthday mentions or age-related information
-       - Preferences, interests, hobbies
-       - Important life events or changes
-       - Work schedule or availability patterns
-       - Gift ideas or things they like
-       - Conversation topics that may be worth following up on or engaging on
-       - Any other relevant personal information. IMPORTANT: this must be about the person, their likes, dislikes, hobbies, and preferences
+    STRICT RULES - READ CAREFULLY:
 
-    3. For transient_info, include dates when possible (e.g., "Traveling to SF Jan 20-24, 2026")
+    1. DEFAULT TO EMPTY ARRAYS. Most conversations contain nothing worth recording. Return empty arrays unless you find something truly exceptional.
 
-    4. Only suggest updates when you have reasonable confidence (0.8 or higher) and that the information is still relevant near the current date.
+    2. ONLY extract information that is:
+       - EXPLICITLY and DIRECTLY stated by {{ input.contactName }} (not implied, not inferred)
+       - A concrete, verifiable FACT (not opinions about everyday things, not casual preferences)
+       - SIGNIFICANT enough to remember long-term (birthdays, major life events, strong passions)
+       - NOT already in current values
 
-    5. Do not suggest values that are already set to the same thing in current values
+    3. DO NOT EXTRACT:
+       - Casual conversation topics ("we talked about movies" - NO)
+       - Minor preferences ("said the food was good" - NO)
+       - Implied information ("seems busy" - NO)
+       - Temporary moods or states ("having a rough day" - NO)
+       - Plans without specific dates ("might visit sometime" - NO)
+       - Anything you're inferring rather than reading directly
+       - Tags, they're typically managed by the user manually
 
-    6. For tags, ONLY suggest tags from the AVAILABLE TAGS list above. Do not invent new tags.
-       If no existing tags are relevant, return an empty tagSuggestions array.
+    4. EXAMPLES OF WHAT TO EXTRACT (rare):
+       - "My birthday is March 15th" -> birthday field
+       - "I'm a vegetarian" -> notes (significant dietary restriction)
+       - "I'll be in Tokyo from Jan 5-12" -> transient_info with dates
+       - "I'm getting married in June" -> notes (major life event)
 
-    7. IMPORTANT: Updates should be very brief and factual, eg. likes persimmons. Do not fill with complete sentences.
+    5. EXAMPLES OF WHAT NOT TO EXTRACT (common):
+       - "Had a great dinner" -> NO (not a lasting fact)
+       - "Work has been busy" -> NO (temporary state)
+       - "I liked that movie" -> NO (minor preference)
+       - "Maybe we should hang out" -> NO (vague plan)
+       - "I'm tired today" -> NO (temporary)
 
-    8. IMPORTANT: If it's not very clear from the context that the message specifically indicates something that is true/essential about that individual, do not suggest it.
+    6. Confidence must be 0.95+ to include. If you're not absolutely certain, DO NOT include it.
 
-    Return your analysis as structured data with field suggestions and tag suggestions.
-    Each suggestion should include a confidence score and brief reasoning.
+    7. When in doubt, return empty arrays: {"fieldSuggestions": [], "tagSuggestions": []}
 
     {{ ctx.output_format }}
   "#

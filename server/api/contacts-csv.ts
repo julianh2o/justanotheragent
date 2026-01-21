@@ -12,6 +12,7 @@ const BASIC_FIELDS = [
   'notes',
   'outreachFrequencyDays',
   'preferredContactMethod',
+  'lastContacted',
   'tags',
 ];
 
@@ -153,6 +154,7 @@ router.get('/export', async (_req: Request, res: Response) => {
       row.push(escapeCSV(contact.notes));
       row.push(escapeCSV(contact.outreachFrequencyDays?.toString()));
       row.push(escapeCSV(contact.preferredContactMethod));
+      row.push(escapeCSV(contact.lastContacted ? contact.lastContacted.toISOString().split('T')[0] : ''));
       row.push(escapeCSV(contact.tags.map((t) => t.tag.name).join(';')));
 
       // Channel fields
@@ -231,6 +233,7 @@ router.get('/template', async (_req: Request, res: Response) => {
       'Met at conference 2024', // notes
       '30', // outreachFrequencyDays
       'phone', // preferredContactMethod
+      '2024-01-15', // lastContacted
       'Friend;Coworker', // tags
       // phone
       '555-123-4567',
@@ -279,6 +282,7 @@ router.get('/template', async (_req: Request, res: Response) => {
       '', // notes
       '', // outreachFrequencyDays
       '', // preferredContactMethod
+      '', // lastContacted
       '', // tags
       // phone
       '555-987-6543',
@@ -423,6 +427,7 @@ router.post('/import', async (req: Request, res: Response) => {
             notes: data.notes?.trim() || null,
             outreachFrequencyDays: data.outreachFrequencyDays ? parseInt(data.outreachFrequencyDays) : null,
             preferredContactMethod: data.preferredContactMethod?.trim() || null,
+            lastContacted: data.lastContacted ? new Date(data.lastContacted) : null,
             channels: { create: channels },
             tags: { create: tagIds.map((tagId) => ({ tag: { connect: { id: tagId } } })) },
             customFields: { create: customFields },

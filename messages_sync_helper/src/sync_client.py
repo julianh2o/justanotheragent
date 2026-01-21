@@ -133,7 +133,7 @@ class SyncClient:
                 "timestamp": datetime.now().isoformat(),
             }
             await self._ws.send(json.dumps(payload))
-            logger.debug(f"Sent {len(messages)} messages")
+            logger.info(f"Sent {len(messages)} new messages to server")
             return True
         except Exception as e:
             logger.error(f"Failed to send messages: {e}")

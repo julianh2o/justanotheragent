@@ -458,24 +458,45 @@ class MessagesSyncHelperApp(rumps.App):
             return False
 
     def _on_db_change(self) -> None:
-        """Called when the Messages database changes."""
+        """Called when the Messages database changes.
+
+        Note: This runs in the watchdog thread, not the main thread.
+        We must create a fresh database connection for thread safety.
+        """
+        logger.info(f"Database change detected (connected={self._connected})")
         if not self._connected:
             return
 
-        # Fetch new messages
-        messages = self.db.get_messages_since(self.config.last_message_rowid, limit=50)
+        # Create a fresh database connection for this thread
+        thread_db = MessagesDatabase()
+        if not thread_db.connect():
+            logger.error("Failed to connect to database in watcher thread")
+            return
 
-        if messages:
-            # Update last seen rowid
-            self.config.last_message_rowid = messages[-1].rowid
-            self.config.save()
-
-            # Send to server (schedule on async loop)
-            if self._loop:
-                asyncio.run_coroutine_threadsafe(
-                    self.sync_client.send_messages(messages), self._loop
+        try:
+            # Fetch new messages
+            messages = thread_db.get_messages_since(self.config.last_message_rowid, limit=50)
+            if messages:
+                logger.info(
+                    f"Found {len(messages)} new messages since rowid {self.config.last_message_rowid} "
+                    f"(rowids {messages[0].rowid}-{messages[-1].rowid})"
                 )
-                logger.info(f"Queued {len(messages)} messages for sync")
+            else:
+                logger.info(f"Found 0 new messages since rowid {self.config.last_message_rowid}")
+
+            if messages:
+                # Update last seen rowid
+                self.config.last_message_rowid = messages[-1].rowid
+                self.config.save()
+
+                # Send to server (schedule on async loop)
+                if self._loop:
+                    asyncio.run_coroutine_threadsafe(
+                        self.sync_client.send_messages(messages), self._loop
+                    )
+                    logger.info(f"Queued {len(messages)} messages for sync")
+        finally:
+            thread_db.close()
 
     def _start_async_loop(self) -> None:
         """Start the async event loop in a background thread."""

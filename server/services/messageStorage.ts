@@ -84,6 +84,9 @@ function getPhoneVariants(phone: string): string[] {
 export async function storeMessages(messages: IncomingMessage[]): Promise<number> {
   let storedCount = 0;
 
+  // Track outgoing messages to update lastContacted
+  const outgoingByHandle: Map<string, Date> = new Map();
+
   for (const msg of messages) {
     try {
       // Upsert message (update if exists, create if not)
@@ -108,6 +111,15 @@ export async function storeMessages(messages: IncomingMessage[]): Promise<number
         },
       });
       storedCount++;
+
+      // Track outgoing messages for lastContacted updates
+      if (msg.is_from_me) {
+        const msgDate = new Date(msg.date);
+        const existing = outgoingByHandle.get(msg.handle_id);
+        if (!existing || msgDate > existing) {
+          outgoingByHandle.set(msg.handle_id, msgDate);
+        }
+      }
 
       // Store attachment metadata (without file data)
       for (const att of msg.attachments) {
@@ -136,7 +148,77 @@ export async function storeMessages(messages: IncomingMessage[]): Promise<number
     }
   }
 
+  // Update lastContacted for contacts with matching phone channels
+  await updateLastContactedFromMessages(outgoingByHandle);
+
   return storedCount;
+}
+
+/**
+ * Update lastContacted for contacts based on outgoing messages
+ */
+async function updateLastContactedFromMessages(outgoingByHandle: Map<string, Date>): Promise<void> {
+  if (outgoingByHandle.size === 0) return;
+
+  // Build all phone number variants for lookup
+  const allVariants: string[] = [];
+  const variantToDate = new Map<string, Date>();
+
+  for (const [handle, date] of outgoingByHandle) {
+    const variants = getPhoneVariants(handle);
+    for (const variant of variants) {
+      allVariants.push(variant);
+      const existing = variantToDate.get(variant);
+      if (!existing || date > existing) {
+        variantToDate.set(variant, date);
+      }
+    }
+  }
+
+  // Find contacts with phone channels matching any of these handles
+  const matchingChannels = await prisma.channel.findMany({
+    where: {
+      type: 'phone',
+      identifier: { in: allVariants },
+    },
+    select: {
+      identifier: true,
+      contactId: true,
+      contact: {
+        select: {
+          id: true,
+          lastContacted: true,
+        },
+      },
+    },
+  });
+
+  // Group by contact and find the most recent date
+  const contactUpdates = new Map<string, { currentLastContacted: Date | null; newDate: Date }>();
+
+  for (const channel of matchingChannels) {
+    const messageDate = variantToDate.get(channel.identifier);
+    if (!messageDate) continue;
+
+    const existing = contactUpdates.get(channel.contactId);
+    if (!existing || messageDate > existing.newDate) {
+      contactUpdates.set(channel.contactId, {
+        currentLastContacted: channel.contact.lastContacted,
+        newDate: messageDate,
+      });
+    }
+  }
+
+  // Update contacts where the message date is more recent than lastContacted
+  for (const [contactId, { currentLastContacted, newDate }] of contactUpdates) {
+    if (!currentLastContacted || newDate > currentLastContacted) {
+      await prisma.contact.update({
+        where: { id: contactId },
+        data: { lastContacted: newDate },
+      });
+      console.log(`[MessageStorage] Updated lastContacted for contact ${contactId} to ${newDate.toISOString()}`);
+    }
+  }
 }
 
 /**
@@ -454,6 +536,23 @@ export async function getMaxStoredRowid(): Promise<number> {
     _max: { rowid: true },
   });
   return result._max.rowid || 0;
+}
+
+/**
+ * Get the lowest rowid we have stored
+ */
+export async function getMinStoredRowid(): Promise<number> {
+  const result = await prisma.storedMessage.aggregate({
+    _min: { rowid: true },
+  });
+  return result._min.rowid || 0;
+}
+
+/**
+ * Get count of stored messages
+ */
+export async function getStoredMessageCount(): Promise<number> {
+  return prisma.storedMessage.count();
 }
 
 // Legacy format for messageBatcher compatibility
