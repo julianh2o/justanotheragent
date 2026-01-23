@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Typography, Paper, Snackbar, Alert } from '@mui/material';
 
 import { APP_TITLE, PAGE_TITLE_HOME } from '../utils/constants';
@@ -20,6 +21,9 @@ import ContactDetailView from '../components/ContactDetailView';
 import ContactDialog from '../components/ContactDialog';
 
 export const Home = () => {
+  const { contactId } = useParams<{ contactId: string }>();
+  const navigate = useNavigate();
+
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [channelTypes, setChannelTypes] = useState<ChannelType[]>([]);
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([]);
@@ -48,9 +52,10 @@ export const Home = () => {
       setCustomFieldDefs(customFieldsData);
       setTags(tagsData);
 
-      // Update selected contact if it exists
-      if (selectedContact) {
-        const updated = contactsData.find((c) => c.id === selectedContact.id);
+      // Update selected contact if it exists (either from URL or previous selection)
+      const targetId = contactId || selectedContact?.id;
+      if (targetId) {
+        const updated = contactsData.find((c) => c.id === targetId);
         setSelectedContact(updated || null);
       }
     } catch (error) {
@@ -58,15 +63,26 @@ export const Home = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedContact]);
+  }, [selectedContact?.id, contactId]);
 
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sync URL with selected contact from URL params on initial load
+  useEffect(() => {
+    if (contactId && contacts.length > 0 && !selectedContact) {
+      const contact = contacts.find((c) => c.id === contactId);
+      if (contact) {
+        setSelectedContact(contact);
+      }
+    }
+  }, [contactId, contacts, selectedContact]);
+
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact);
+    navigate(`/conversation/${contact.id}`, { replace: true });
   };
 
   const handleAddContact = () => {
@@ -160,6 +176,7 @@ export const Home = () => {
       try {
         const result = await purgeAllContacts();
         setSelectedContact(null);
+        navigate('/', { replace: true });
         setSnackbar({
           open: true,
           message: `Successfully deleted ${result.deleted} contacts.`,

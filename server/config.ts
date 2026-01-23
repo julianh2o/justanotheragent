@@ -12,6 +12,14 @@ interface Config {
   discord: {
     botToken: string | null;
     userId: string | null;
+    allowedUsername: string | null;
+  };
+  tmux: {
+    sshHost: string;
+    sshUser: string;
+    tmuxSession: string;
+    claudeCommand: string;
+    messagePrefix: string;
   };
   messageAnalysis: {
     llmEndpoint: string;
@@ -50,6 +58,14 @@ function createConfig(): Config {
     discord: {
       botToken: process.env.DISCORD_BOT_TOKEN || null,
       userId: process.env.DISCORD_USER_ID || null,
+      allowedUsername: process.env.DISCORD_ALLOWED_USERNAME || null,
+    },
+    tmux: {
+      sshHost: getOptionalEnv('TMUX_SSH_HOST', '10.10.0.14'),
+      sshUser: getOptionalEnv('TMUX_SSH_USER', 'julian'),
+      tmuxSession: getOptionalEnv('TMUX_SESSION', 'clod'),
+      claudeCommand: getOptionalEnv('TMUX_CLAUDE_COMMAND', 'cd ~/clod && claude'),
+      messagePrefix: getOptionalEnv('TMUX_MESSAGE_PREFIX', '[Discord from julianh2o]: '),
     },
     messageAnalysis: {
       llmEndpoint: getOptionalEnv('LLM_ENDPOINT', 'http://localhost:11434'),

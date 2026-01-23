@@ -1,7 +1,8 @@
-import { Client, GatewayIntentBits } from 'discord.js';
+import { ChannelType, Client, GatewayIntentBits, Message, Partials } from 'discord.js';
 import cron from 'node-cron';
 import { config } from './config';
 import { prisma } from './db';
+import { sendMessageToTmux } from './tmux-adapter';
 
 let discordClient: Client | null = null;
 
@@ -123,6 +124,32 @@ async function findUserByIdOrUsername(userId: string): Promise<ReturnType<Client
   return null;
 }
 
+async function handleDirectMessage(message: Message): Promise<void> {
+  // Ignore messages from bots
+  if (message.author.bot) return;
+
+  // Only process DMs
+  if (message.channel.type !== ChannelType.DM) return;
+
+  // Check if user is allowed
+  const allowedUsername = config.discord.allowedUsername;
+  if (allowedUsername && message.author.username !== allowedUsername) {
+    console.log(`[Discord] Ignoring DM from unauthorized user: ${message.author.username}`);
+    return;
+  }
+
+  console.log(`[Discord] Received DM from ${message.author.username}: ${message.content.substring(0, 50)}...`);
+
+  try {
+    await sendMessageToTmux(message.content);
+    await message.react('\u2705'); // checkmark
+    console.log(`[Discord] Successfully forwarded message to tmux`);
+  } catch (error) {
+    console.error('[Discord] Failed to forward message to tmux:', error);
+    await message.react('\u274C'); // X mark
+  }
+}
+
 async function sendDailyReminder(): Promise<void> {
   if (!discordClient || !config.discord.userId) {
     console.log('[Discord] Bot not configured, skipping reminder');
@@ -162,7 +189,13 @@ export async function startDiscordBot(): Promise<void> {
   }
 
   discordClient = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.DirectMessages],
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMembers,
+      GatewayIntentBits.DirectMessages,
+      GatewayIntentBits.MessageContent,
+    ],
+    partials: [Partials.Channel, Partials.Message],
   });
 
   discordClient.on('ready', () => {
@@ -176,6 +209,8 @@ export async function startDiscordBot(): Promise<void> {
 
     console.log('[Discord] Scheduled daily reminder for 9:00 AM');
   });
+
+  discordClient.on('messageCreate', handleDirectMessage);
 
   discordClient.on('error', (error) => {
     console.error('[Discord] Client error:', error);
