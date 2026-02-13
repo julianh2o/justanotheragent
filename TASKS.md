@@ -1,6 +1,6 @@
-# TASKS.md - API Enhancement Agent
+# TASKS.md - Documentation & Deployment Agent
 
-**Branch**: `refactor/api-enhancement`
+**Branch**: `refactor/docs-deployment`
 **Status**: ACTIVE
 
 ## Instructions
@@ -11,80 +11,69 @@ Check this file periodically. If you see "STOP WORKING" below, stop immediately.
 
 ## Tasks
 
-### 1. Add Overdue Contacts Endpoint
+### 1. Update README.md
 
-File: `/server/api/contacts.ts`
+- [ ] Remove all mentions of Discord integration
+- [ ] Remove all mentions of Tmux adapter
+- [ ] Remove all mentions of Ollama/BAML/LLM analysis
+- [ ] Remove Admin page documentation
+- [ ] Document core features clearly:
+  - iMessage sync and sending
+  - Contact directory with channels, tags, custom fields
+  - REST APIs for external access
+- [ ] Update installation instructions (remove BAML setup)
+- [ ] Update environment variables section (remove Discord/Tmux/LLM vars)
+- [ ] Document new API endpoints (overdue, filtering)
 
-- [ ] Add new endpoint: `GET /api/contacts/overdue`
-- [ ] Query params:
-  - `days` (optional, number) - defaults to 0 (get all overdue)
-- [ ] Logic:
-  - Get contacts with `outreachFrequencyDays` set
-  - Calculate last contact date from messages
-  - Return contacts where (today - last_contact) > outreachFrequencyDays + days param
-- [ ] Response: Contact[] with `overdueDays` calculated field
+### 2. Update ARCHITECTURE.md
 
-### 2. Add Contact Filtering
+- [ ] Remove Discord bot section
+- [ ] Remove Tmux adapter section
+- [ ] Remove LLM/BAML analysis section
+- [ ] Remove message processing pipeline documentation
+- [ ] Update database schema documentation (remove processing tables)
+- [ ] Update API endpoint list
+- [ ] Simplify architecture descriptions
+- [ ] Update any diagrams if present
 
-File: `/server/api/contacts.ts`
+### 3. Create docker-compose.yml
 
-- [ ] Modify existing `GET /api/contacts` endpoint
-- [ ] Add query params:
-  - `tag` (string) - filter by tag name
-  - `channelType` (string) - filter by channel type (iMessage, etc.)
-  - `search` (string) - search by contact name (case-insensitive)
-- [ ] Ensure backward compatibility - no params = return all
+- [ ] Create `docker-compose.yml` for dev environment
+- [ ] Include:
+  - App service with volume mounts for development
+  - Proper port mapping (2999)
+  - Environment variables from .env
+- [ ] Test with `docker-compose up`
 
-### 3. Add Message Filtering
+### 4. Verify Dockerfile
 
-File: `/server/api/messages.ts`
+- [ ] Review existing Dockerfile
+- [ ] Ensure it still works after dependency removal
+- [ ] Remove any BAML build steps if present
+- [ ] Test: `docker build -t justanotheragent .`
+- [ ] Test: `docker run -p 2999:2999 justanotheragent`
 
-- [ ] Modify existing `GET /api/messages` endpoint (or create if doesn't exist)
-- [ ] Add query params:
-  - `contactId` (string) - filter by contact
-  - `limit` (number) - limit results (default 50)
-  - `offset` (number) - pagination offset (default 0)
-- [ ] Return messages sorted by date descending
+### 5. Verify Mac App (messages_sync_helper)
 
-### 4. TypeScript Types
+- [ ] Check that Python helper app still works
+- [ ] Update README in that directory if needed
+- [ ] Verify no references to removed features
 
-- [ ] Ensure all new endpoints have proper TypeScript types
-- [ ] Add response types if not already defined
-- [ ] Use Prisma types where applicable
+### 6. Verification Checklist
 
-### 5. Verification
+- [ ] README accurately reflects current features
+- [ ] ARCHITECTURE.md is up to date
+- [ ] No mentions of removed features in docs
+- [ ] Docker build succeeds
+- [ ] Docker container runs and serves app
+- [ ] docker-compose.yml works for dev environment
+- [ ] messages_sync_helper functions correctly
 
-- [ ] Test `GET /api/contacts/overdue` returns correct data
-- [ ] Test `GET /api/contacts?tag=friend` filters correctly
-- [ ] Test `GET /api/contacts?search=john` searches correctly
-- [ ] Test `GET /api/messages?contactId=xxx&limit=10` works
-- [ ] Run `yarn typecheck` - must pass
-- [ ] Run `yarn lint` - must pass
+## Documentation Style Guide
 
-## API Response Examples
+- Be concise - engineers scan, don't read novels
+- Include examples over prose
+- Front-load critical info
+- Delete verbose explanations
 
-```typescript
-// GET /api/contacts/overdue
-[
-  {
-    id: "clxxx",
-    name: "John Doe",
-    overdueDays: 5,
-    outreachFrequencyDays: 30,
-    lastContactDate: "2026-02-08T00:00:00Z",
-    // ... other contact fields
-  }
-]
-
-// GET /api/contacts?tag=family&search=smith
-[
-  {
-    id: "clyyy",
-    name: "Jane Smith",
-    tags: [{ name: "family" }],
-    // ...
-  }
-]
-```
-
-**COMMIT** after each endpoint is implemented and tested.
+**COMMIT** after each major documentation update.
