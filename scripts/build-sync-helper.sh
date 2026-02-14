@@ -55,8 +55,13 @@ python setup.py py2app --quiet
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Create ZIP archive
 APP_NAME="Outreach Sync Helper"
+
+# Sign the app bundle (ad-hoc signing for distribution without Apple Developer ID)
+echo "Signing app bundle..."
+codesign --force --deep --sign - "dist/$APP_NAME.app"
+
+# Create ZIP archive
 cd dist
 echo "Creating ZIP archive..."
 zip -r -q "$APP_NAME.zip" "$APP_NAME.app"
