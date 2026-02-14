@@ -29,8 +29,8 @@ RUN yarn build:server
 RUN yarn build
 
 # Copy sync helper from resources to build/public
-RUN if [ -f "resources/Outreach Sync Helper.zip" ]; then \
-      cp "resources/Outreach Sync Helper.zip" "build/public/"; \
+RUN if [ -f "resources/Outreach Sync Helper.dmg" ]; then \
+      cp "resources/Outreach Sync Helper.dmg" "build/public/"; \
     fi
 
 # Copy config files to build directory

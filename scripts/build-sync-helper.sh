@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build script for Outreach Sync Helper
-# Creates a macOS app bundle and zips it for distribution
+# Creates a macOS app bundle and packages it as a DMG for distribution
 
 set -e
 
@@ -61,10 +61,27 @@ APP_NAME="Outreach Sync Helper"
 echo "Signing app bundle..."
 codesign --force --deep --sign - "dist/$APP_NAME.app"
 
-# Create ZIP archive using ditto (preserves macOS code signing)
-cd dist
-echo "Creating ZIP archive..."
-ditto -c -k --keepParent "$APP_NAME.app" "$APP_NAME.zip"
-mv "$APP_NAME.zip" "$OUTPUT_DIR/"
+# Create DMG
+echo "Creating DMG..."
+DMG_NAME="$APP_NAME.dmg"
+DMG_PATH="$OUTPUT_DIR/$DMG_NAME"
 
-echo "Build complete: $OUTPUT_DIR/$APP_NAME.zip"
+# Remove old DMG if exists
+rm -f "$DMG_PATH"
+
+# Create a temporary directory for DMG contents
+DMG_TEMP="$SYNC_HELPER_DIR/dmg_temp"
+rm -rf "$DMG_TEMP"
+mkdir -p "$DMG_TEMP"
+cp -R "dist/$APP_NAME.app" "$DMG_TEMP/"
+
+# Create symlink to Applications folder
+ln -s /Applications "$DMG_TEMP/Applications"
+
+# Create the DMG
+hdiutil create -volname "$APP_NAME" -srcfolder "$DMG_TEMP" -ov -format UDZO "$DMG_PATH"
+
+# Clean up
+rm -rf "$DMG_TEMP"
+
+echo "Build complete: $DMG_PATH"
