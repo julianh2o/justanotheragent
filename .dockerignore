@@ -37,7 +37,12 @@ coverage
 .env.production
 
 # Data files (should be mounted as volumes)
-data/*.json
+data
+
+# Sync helper build artifacts (built on host, copied from resources/)
+messages_sync_helper/venv
+messages_sync_helper/build
+messages_sync_helper/dist
 
 # Docker files
 Dockerfile
