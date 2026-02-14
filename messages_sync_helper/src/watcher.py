@@ -8,7 +8,7 @@ from typing import Callable, Optional
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from .config import MESSAGES_DB_PATH
+from config import MESSAGES_DB_PATH
 
 logger = logging.getLogger(__name__)
 

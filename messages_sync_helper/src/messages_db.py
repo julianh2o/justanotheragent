@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .config import ATTACHMENTS_PATH, MESSAGES_DB_PATH
+from config import ATTACHMENTS_PATH, MESSAGES_DB_PATH
 
 
 @dataclass

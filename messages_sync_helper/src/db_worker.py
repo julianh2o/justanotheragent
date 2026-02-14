@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from .config import MESSAGES_DB_PATH
-from .messages_db import Message, MessagesDatabase
+from config import MESSAGES_DB_PATH
+from messages_db import Message, MessagesDatabase
 
 logger = logging.getLogger(__name__)
 

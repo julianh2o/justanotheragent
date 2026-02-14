@@ -10,9 +10,9 @@ from typing import Any, Callable, Optional
 import websockets
 from websockets.client import WebSocketClientProtocol
 
-from .config import FAILED_ATTACHMENTS_LOG, LOGS_DIR, Config
-from .db_worker import DatabaseWorker
-from .messages_db import Attachment, Message
+from config import FAILED_ATTACHMENTS_LOG, LOGS_DIR, Config
+from db_worker import DatabaseWorker
+from messages_db import Attachment, Message
 
 # Maximum attachment size to transfer (10MB)
 MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024

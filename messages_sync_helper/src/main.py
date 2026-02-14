@@ -17,12 +17,12 @@ import rumps
 # Path to icon in assets folder
 ICON_PATH = Path(__file__).parent.parent / "assets" / "icon.png"
 
-from .config import FAILED_ATTACHMENTS_LOG, MESSAGES_DB_PATH, Config, get_config
-from .db_worker import DatabaseWorker
-from .login_item import is_launch_at_login_enabled, toggle_launch_at_login
-from .messages_db import MessagesDatabase
-from .sync_client import SyncClient
-from .watcher import MessagesDatabaseWatcher
+from config import FAILED_ATTACHMENTS_LOG, MESSAGES_DB_PATH, Config, get_config
+from db_worker import DatabaseWorker
+from login_item import is_launch_at_login_enabled, toggle_launch_at_login
+from messages_db import MessagesDatabase
+from sync_client import SyncClient
+from watcher import MessagesDatabaseWatcher
 
 # Configure logging
 logging.basicConfig(

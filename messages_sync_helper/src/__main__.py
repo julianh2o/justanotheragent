@@ -2,6 +2,6 @@
 
 import sys
 
-from .main import main
+from main import main
 
 sys.exit(main())
