@@ -1,6 +1,6 @@
 {
   "name": "outreach",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Outreach - Contact management and messaging",
   "author": {
     "name": "Julian Hartline",
@@ -38,7 +38,7 @@
     "build:sync-helper": "bash scripts/build-sync-helper.sh",
     "docker:build": "bash scripts/docker-build.sh",
     "docker:push": "bash scripts/docker-build.sh --push",
-    "start": "NODE_ENV=production node build/index.js",
+    "start": "NODE_ENV=production node build/server/index.js",
     "preview": "prisma migrate deploy && yarn build:server && yarn build && yarn start",
     "test": "yarn test:client && yarn test:server",
     "test:client": "vitest run --config vitest.config.ts",
