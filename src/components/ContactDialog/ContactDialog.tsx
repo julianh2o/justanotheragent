@@ -19,7 +19,13 @@ import {
   AccordionDetails,
   Autocomplete,
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  ExpandMore as ExpandMoreIcon,
+  Star as StarIcon,
+  StarBorder as StarBorderIcon,
+} from '@mui/icons-material';
 import { Contact, ContactFormData, ChannelType, CustomFieldDefinition, Tag, Channel } from '../../types';
 import { createContact, updateContact, createTag } from '../../utils/contactsApi';
 
@@ -135,6 +141,14 @@ export default function ContactDialog({
   const handleChannelChange = (index: number, field: keyof ChannelFormData, value: string | boolean) => {
     const updated = [...channels];
     updated[index] = { ...updated[index], [field]: value };
+    setChannels(updated);
+  };
+
+  const handleSetPrimary = (index: number) => {
+    const updated = channels.map((ch, i) => ({
+      ...ch,
+      isPrimary: i === index,
+    }));
     setChannels(updated);
   };
 
@@ -279,55 +293,83 @@ export default function ContactDialog({
             <AccordionDetails>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {channels.map((channel, index) => (
-                  <Box key={index} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant='subtitle2'>Channel {index + 1}</Typography>
-                      <IconButton size='small' onClick={() => handleRemoveChannel(index)}>
-                        <DeleteIcon fontSize='small' />
-                      </IconButton>
+                  <Box
+                    key={index}
+                    sx={{
+                      display: 'flex',
+                      border: '1px solid',
+                      borderColor: channel.isPrimary ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                    }}>
+                    {/* Star indicator in margin */}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        px: 1,
+                        borderRight: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: channel.isPrimary ? 'primary.main' : 'action.hover',
+                        cursor: 'pointer',
+                        '&:hover': {
+                          bgcolor: channel.isPrimary ? 'primary.dark' : 'action.selected',
+                        },
+                      }}
+                      onClick={() => handleSetPrimary(index)}
+                      title={channel.isPrimary ? 'Primary contact method' : 'Set as primary'}>
+                      {channel.isPrimary ? (
+                        <StarIcon sx={{ color: 'primary.contrastText' }} />
+                      ) : (
+                        <StarBorderIcon sx={{ color: 'text.secondary' }} />
+                      )}
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
-                      <FormControl sx={{ minWidth: 150 }}>
-                        <InputLabel>Type</InputLabel>
-                        <Select
-                          value={channel.type}
-                          onChange={(e) => handleChannelChange(index, 'type', e.target.value)}
-                          label='Type'
-                          size='small'>
-                          {channelTypes.map((ct) => (
-                            <MenuItem key={ct.id} value={ct.id}>
-                              {ct.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                      <TextField
-                        label={channel.type === 'address' ? 'Address Name' : 'Identifier'}
-                        value={channel.identifier}
-                        onChange={(e) => handleChannelChange(index, 'identifier', e.target.value)}
-                        size='small'
-                        fullWidth
-                      />
-                      <TextField
-                        label='Label'
-                        value={channel.label}
-                        onChange={(e) => handleChannelChange(index, 'label', e.target.value)}
-                        size='small'
-                        placeholder='e.g., Work, Personal'
-                        sx={{ minWidth: 120 }}
-                      />
-                      <FormControl sx={{ minWidth: 80 }}>
-                        <InputLabel>Primary</InputLabel>
-                        <Select
-                          value={channel.isPrimary ? 'yes' : 'no'}
-                          onChange={(e) => handleChannelChange(index, 'isPrimary', e.target.value === 'yes')}
-                          label='Primary'
-                          size='small'>
-                          <MenuItem value='no'>No</MenuItem>
-                          <MenuItem value='yes'>Yes</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Box>
+                    {/* Channel content */}
+                    <Box sx={{ flex: 1, p: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant='subtitle2'>
+                          Channel {index + 1}
+                          {channel.isPrimary && (
+                            <Typography component='span' variant='caption' sx={{ ml: 1, color: 'primary.main' }}>
+                              (Primary)
+                            </Typography>
+                          )}
+                        </Typography>
+                        <IconButton size='small' onClick={() => handleRemoveChannel(index)}>
+                          <DeleteIcon fontSize='small' />
+                        </IconButton>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+                        <FormControl sx={{ minWidth: 150 }}>
+                          <InputLabel>Type</InputLabel>
+                          <Select
+                            value={channel.type}
+                            onChange={(e) => handleChannelChange(index, 'type', e.target.value)}
+                            label='Type'
+                            size='small'>
+                            {channelTypes.map((ct) => (
+                              <MenuItem key={ct.id} value={ct.id}>
+                                {ct.name}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <TextField
+                          label={channel.type === 'address' ? 'Address Name' : 'Identifier'}
+                          value={channel.identifier}
+                          onChange={(e) => handleChannelChange(index, 'identifier', e.target.value)}
+                          size='small'
+                          fullWidth
+                        />
+                        <TextField
+                          label='Label'
+                          value={channel.label}
+                          onChange={(e) => handleChannelChange(index, 'label', e.target.value)}
+                          size='small'
+                          placeholder='e.g., Work, Personal'
+                          sx={{ minWidth: 120 }}
+                        />
+                      </Box>
                     {channel.type === 'address' && (
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
                         <TextField
@@ -376,6 +418,7 @@ export default function ContactDialog({
                         />
                       </Box>
                     )}
+                    </Box>
                   </Box>
                 ))}
                 <Button startIcon={<AddIcon />} onClick={handleAddChannel} variant='outlined'>

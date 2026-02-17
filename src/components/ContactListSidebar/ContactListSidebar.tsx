@@ -123,6 +123,7 @@ export default function ContactListSidebar({
   const [searchQuery, setSearchQuery] = useState('');
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);
+  const [overdueExpanded, setOverdueExpanded] = useState(false);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchor(event.currentTarget);
@@ -170,7 +171,7 @@ export default function ContactListSidebar({
   }, [contacts, searchQuery]);
 
   // Organize contacts into sections
-  const { overdueContacts, upcomingContacts, remainingContacts } = useMemo(() => {
+  const { allOverdueContacts, upcomingContacts, remainingContacts } = useMemo(() => {
     const withStatus = filteredContacts.map((contact) => ({
       contact,
       status: getOutreachStatus(contact),
@@ -188,9 +189,9 @@ export default function ContactListSidebar({
       .sort((a, b) => (a.status?.daysUntilDue ?? 0) - (b.status?.daysUntilDue ?? 0))
       .map((c) => c.contact);
 
-    // Get IDs of contacts in the top section (first 3 overdue or first 3 upcoming)
+    // Get IDs of contacts in the top section (all overdue or first 3 upcoming)
     const topSectionIds = new Set(
-      overdue.length > 0 ? overdue.slice(0, 3).map((c) => c.id) : upcoming.slice(0, 3).map((c) => c.id),
+      overdue.length > 0 ? overdue.map((c) => c.id) : upcoming.slice(0, 3).map((c) => c.id),
     );
 
     // Remaining contacts (everyone not in the top section), sorted by lastContacted descending
@@ -203,11 +204,15 @@ export default function ContactListSidebar({
       });
 
     return {
-      overdueContacts: overdue.slice(0, 3),
+      allOverdueContacts: overdue,
       upcomingContacts: upcoming.slice(0, 3),
       remainingContacts: remaining,
     };
   }, [filteredContacts]);
+
+  // Determine which overdue contacts to display based on expanded state
+  const displayedOverdueContacts = overdueExpanded ? allOverdueContacts : allOverdueContacts.slice(0, 3);
+  const hasMoreOverdue = allOverdueContacts.length > 3;
 
   const getInitials = (contact: Contact): string => {
     const first = contact.firstName?.[0] || '';
@@ -276,7 +281,7 @@ export default function ContactListSidebar({
     );
   };
 
-  const hasOverdue = overdueContacts.length > 0;
+  const hasOverdue = allOverdueContacts.length > 0;
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', borderRight: 1, borderColor: 'divider' }}>
@@ -363,7 +368,43 @@ export default function ContactListSidebar({
                   }}>
                   Overdue Reachouts
                 </ListSubheader>
-                {overdueContacts.map((contact) => renderContactItem(contact, true))}
+                {displayedOverdueContacts.map((contact) => renderContactItem(contact, true))}
+                {hasMoreOverdue && (
+                  <Box
+                    onClick={() => setOverdueExpanded(!overdueExpanded)}
+                    sx={{
+                      py: 1,
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      borderBottom: 1,
+                      borderColor: 'divider',
+                      bgcolor: 'error.dark',
+                      '&:hover': {
+                        bgcolor: 'error.main',
+                      },
+                    }}>
+                    <Typography
+                      variant='caption'
+                      sx={{
+                        color: 'error.contrastText',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 0.5,
+                      }}>
+                      {overdueExpanded ? (
+                        <>
+                          Show less <ExpandLessIcon fontSize='small' />
+                        </>
+                      ) : (
+                        <>
+                          Show all ({allOverdueContacts.length}) <ExpandMoreIcon fontSize='small' />
+                        </>
+                      )}
+                    </Typography>
+                  </Box>
+                )}
               </>
             ) : upcomingContacts.length > 0 ? (
               <>
