@@ -559,6 +559,9 @@ export function handleConnection(ws: WebSocket): void {
     console.log(`[MessageSync] Helper disconnected (client: ${currentClientId || 'unknown'})`);
     helperConnection = null;
     currentClientId = null;
+    historySyncInProgress = false;
+    historyBatchesLoaded = 0;
+    syncMode = 'new';
     stopPingInterval();
 
     if (onDisconnectedCallback) {
